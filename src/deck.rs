@@ -112,4 +112,19 @@ impl Deck {
         let mut rng = thread_rng();
         self.cards.shuffle(&mut rng);
     }
+
+    pub fn deal(&mut self) -> [Vec<Card>; 4] {
+        let mut hands = [Vec::new(), Vec::new(), Vec::new(), Vec::new()];
+        for _i in 0..13 {
+            for hand in &mut hands {
+                // deal one card at a time
+                let card = self.cards.pop();
+                match card {
+                    Some(c) => hand.push(c),
+                    _ => {}  // never happens on a full deck anyway
+                };
+            }
+        }
+        hands
+    }
 }
