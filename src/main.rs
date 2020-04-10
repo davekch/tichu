@@ -1,14 +1,10 @@
 mod deck;
 
 use deck::{
-    Kind,
-    RegularKind,
-    SpecialKind,
-    Color,
-    Card,
+    Deck,
 };
 
 fn main() {
-    let card = Card::new(Kind::Special(SpecialKind::Phoenix), Color::Green);
-    println!("{:?}", card);
+    let deck = Deck::new();
+    println!("{:?}", deck.cards.len());
 }

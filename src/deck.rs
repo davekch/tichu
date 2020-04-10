@@ -1,4 +1,7 @@
-#[derive(Debug, PartialEq, Copy, Clone)]
+use strum::IntoEnumIterator; // iterate over static enum
+use strum_macros::EnumIter;
+
+#[derive(Debug, PartialEq, Copy, Clone, EnumIter)]
 pub enum RegularKind {
     Two,
     Three,
@@ -14,7 +17,7 @@ pub enum RegularKind {
     King,
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone, EnumIter)]
 pub enum SpecialKind {
     Dragon,
     Phoenix,
@@ -29,7 +32,7 @@ pub enum Kind {
 }
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Color {
     Black,
     Blue,
@@ -79,5 +82,27 @@ impl Card {
             rank: rank,
             value: value
         }
+    }
+}
+
+
+pub struct Deck {
+    pub cards: Vec<Card>,
+}
+
+impl Deck {
+    pub fn new() -> Deck {
+        let mut deck = Vec::new();
+        // add all regular cards to deck
+        for color in vec![Color::Green, Color::Red, Color::Blue, Color::Black] {
+            for kind in RegularKind::iter() {
+                deck.push(Card::new(Kind::Regular(kind), color));
+            }
+        }
+        // add special cards to deck
+        for kind in SpecialKind::iter() {
+            deck.push(Card::new(Kind::Special(kind), Color::None));
+        }
+        Deck { cards: deck }
     }
 }
