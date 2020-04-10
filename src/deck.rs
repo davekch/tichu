@@ -3,7 +3,7 @@ use strum_macros::EnumIter;
 use rand::thread_rng;
 use rand::seq::SliceRandom;
 
-#[derive(Debug, PartialEq, Copy, Clone, EnumIter)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, EnumIter)]
 pub enum RegularKind {
     Two,
     Three,
@@ -19,7 +19,7 @@ pub enum RegularKind {
     King,
 }
 
-#[derive(Debug, PartialEq, Copy, Clone, EnumIter)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, EnumIter)]
 pub enum SpecialKind {
     Dragon,
     Phoenix,
@@ -27,14 +27,14 @@ pub enum SpecialKind {
     One,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Kind {
     Special(SpecialKind),
     Regular(RegularKind),
 }
 
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum Color {
     Black,
     Blue,
@@ -44,7 +44,7 @@ pub enum Color {
 }
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Card {
     pub kind: Kind,
     pub color: Color,
@@ -126,5 +126,54 @@ impl Deck {
             }
         }
         hands
+    }
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use itertools::Itertools;
+
+    #[test]
+    fn test_new_deck_length() {
+        let deck = Deck::new();
+        assert_eq!(deck.cards.len(), 52);
+    }
+
+    #[test]
+    fn test_new_deck_unique() {
+        let deck = Deck::new();
+        // remove dublicates
+        let unique_deck: Vec<Card> = deck.cards
+            .clone()
+            .into_iter()
+            .unique()
+            .collect();
+        assert_eq!(deck.cards, unique_deck);
+    }
+
+    #[test]
+    fn test_deck_totalvalue() {
+        // test if the total value of all cards is 100
+        let deck = Deck::new();
+        let mut total = 0;
+        for card in &deck.cards {
+            total += card.value;
+        }
+        assert_eq!(total, 100);
+    }
+
+    #[test]
+    fn test_deal() {
+        let mut deck = Deck::new();
+        let hands = deck.deal();
+        // check if all cards are used
+        assert_eq!(deck.cards.len(), 0);
+        for hand in &hands {
+            // check if each player has 13 cards
+            assert_eq!(hand.len(), 13);
+        }
     }
 }
