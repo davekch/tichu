@@ -1,5 +1,7 @@
 use strum::IntoEnumIterator; // iterate over static enum
 use strum_macros::EnumIter;
+use rand::thread_rng;
+use rand::seq::SliceRandom;
 
 #[derive(Debug, PartialEq, Copy, Clone, EnumIter)]
 pub enum RegularKind {
@@ -94,9 +96,9 @@ impl Deck {
     pub fn new() -> Deck {
         let mut deck = Vec::new();
         // add all regular cards to deck
-        for color in vec![Color::Green, Color::Red, Color::Blue, Color::Black] {
+        for color in &[Color::Green, Color::Red, Color::Blue, Color::Black] {
             for kind in RegularKind::iter() {
-                deck.push(Card::new(Kind::Regular(kind), color));
+                deck.push(Card::new(Kind::Regular(kind), *color));
             }
         }
         // add special cards to deck
@@ -104,5 +106,10 @@ impl Deck {
             deck.push(Card::new(Kind::Special(kind), Color::None));
         }
         Deck { cards: deck }
+    }
+
+    pub fn shuffle(&mut self) {
+        let mut rng = thread_rng();
+        self.cards.shuffle(&mut rng);
     }
 }

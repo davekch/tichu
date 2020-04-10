@@ -5,6 +5,7 @@ use deck::{
 };
 
 fn main() {
-    let deck = Deck::new();
-    println!("{:?}", deck.cards.len());
+    let mut deck = Deck::new();
+    deck.shuffle();
+    println!("{:?}", deck.cards[0]);
 }
