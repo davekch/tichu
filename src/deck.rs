@@ -27,11 +27,40 @@ pub enum SpecialKind {
     One,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, Clone, Hash)]
 pub enum Kind {
     Special(SpecialKind),
     Regular(RegularKind),
 }
+
+impl PartialEq for Kind {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            // the phoenix is "equal" to all regular cards
+            Kind::Special(SpecialKind::Phoenix) => {
+                match other {
+                    Kind::Regular(_) => true,
+                    Kind::Special(o) => *o == SpecialKind::Phoenix
+                }
+            },
+            Kind::Regular(s) => {
+                match other {
+                    Kind::Special(SpecialKind::Phoenix) => true,
+                    Kind::Regular(o) => s == o,
+                    _ => false
+                }
+            },
+            Kind::Special(s) => {
+                match other {
+                    Kind::Regular(_) => false,
+                    Kind::Special(o) => s == o
+                }
+            }
+        }
+    }
+}
+
+impl Eq for Kind {}
 
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
@@ -175,5 +204,38 @@ mod tests {
             // check if each player has 13 cards
             assert_eq!(hand.len(), 13);
         }
+    }
+
+    #[test]
+    fn test_equal_kinds() {
+        // check two equals
+        assert_eq!(
+            Kind::Regular(RegularKind::Three),
+            Kind::Regular(RegularKind::Three)
+        );
+        // check phoenix
+        assert_eq!(
+            Kind::Special(SpecialKind::Phoenix),
+            Kind::Regular(RegularKind::Three)
+        );
+        assert_eq!(
+            Kind::Regular(RegularKind::Three),
+            Kind::Special(SpecialKind::Phoenix)
+        );
+        // check inequality between regular kinds
+        assert_ne!(
+            Kind::Regular(RegularKind::Three),
+            Kind::Regular(RegularKind::Queen)
+        );
+        // check inequality between regular and special kind
+        assert_ne!(
+            Kind::Special(SpecialKind::One),
+            Kind::Regular(RegularKind::Queen)
+        );
+        // check inequality between two special kinds
+        assert_ne!(
+            Kind::Special(SpecialKind::Phoenix),
+            Kind::Special(SpecialKind::Dog)
+        );
     }
 }
