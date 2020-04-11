@@ -1,8 +1,10 @@
 mod deck;
+mod combinations;
 
 use deck::{
     Deck,
 };
+use combinations::find_combination;
 
 fn main() {
     let mut deck = Deck::new();
