@@ -24,6 +24,10 @@ pub fn find_combination(cards: &[Card]) -> Option<Combination> {
         2 => if check_all_equal(cards) { Some(Combination::Doublet) } else { None },
         3 => if check_all_equal(cards) { Some(Combination::Triplet) } else { None },
         4 => if check_bomb(cards) { Some(Combination::Bomb) } else { None },
+        5 => {
+            if check_fullhouse(cards) { Some(Combination::FullHouse) }
+            else { None }
+        }
         _ => None
     }
 }
@@ -43,6 +47,14 @@ fn check_bomb(cards: &[Card]) -> bool {
     );
     let allequal = check_all_equal(cards);
     allequal && allregular
+}
+
+fn check_fullhouse(cards: &[Card]) -> bool {
+    let first_two = check_all_equal(&cards[0..2]);
+    let last_three = check_all_equal(&cards[2..5]);
+    let first_three = check_all_equal(&cards[0..3]);
+    let last_two = check_all_equal(&cards[3..5]);
+    (first_two && last_three) || (first_three && last_two)
 }
 
 
@@ -104,5 +116,26 @@ mod tests {
             Card::regular(RegularKind::Six, Color::Red),
         ];
         assert_ne!(find_combination(&hand), Some(Combination::Bomb));
+    }
+
+    #[test]
+    fn test_find_fullhouse() {
+        // test valid fullhouse
+        let hand = [
+            Card::regular(RegularKind::Six, Color::Black),
+            Card::regular(RegularKind::Six, Color::Green),
+            Card::regular(RegularKind::King, Color::Green),
+            Card::regular(RegularKind::King, Color::Blue),
+            Card::regular(RegularKind::King, Color::Red),
+        ];
+        assert_eq!(find_combination(&hand), Some(Combination::FullHouse));
+        let hand = [
+            Card::regular(RegularKind::Six, Color::Black),
+            Card::regular(RegularKind::Six, Color::Green),
+            Card::special(SpecialKind::Phoenix),
+            Card::regular(RegularKind::King, Color::Blue),
+            Card::regular(RegularKind::King, Color::Red),
+        ];
+        assert_eq!(find_combination(&hand), Some(Combination::FullHouse));
     }
 }
