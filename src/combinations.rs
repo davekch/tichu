@@ -26,9 +26,10 @@ pub fn find_combination(cards: &[Card]) -> Option<Combination> {
         4 => if check_bomb(cards) { Some(Combination::Bomb) } else { None },
         5 => {
             if check_fullhouse(cards) { Some(Combination::FullHouse) }
+            else if check_straight(cards) { Some(Combination::Straight) }
             else { None }
-        }
-        _ => None
+        },
+        _ => if check_straight(cards) { Some(Combination::Straight) } else { None }
     }
 }
 
@@ -55,6 +56,44 @@ fn check_fullhouse(cards: &[Card]) -> bool {
     let first_three = check_all_equal(&cards[0..3]);
     let last_two = check_all_equal(&cards[3..5]);
     (first_two && last_three) || (first_three && last_two)
+}
+
+fn check_straight(cards: &[Card]) -> bool {
+    // check if all cards are consecutive, allowing one and phoenix
+    // for every card in cards check if the next card is one rank above.
+    // if it is, continue, if it isn't return false.
+    // at the end, return true
+    for i in 0..(cards.len()-1) {
+        // match kind of current card
+        match &cards[i].kind {
+            Kind::Regular(_) => {
+                // match kind of next card
+                match &cards[i+1].kind {
+                    Kind::Regular(_) => if cards[i].rank + 1 != cards[i+1].rank { return false },
+                    Kind::Special(SpecialKind::Phoenix) => {},
+                    _ => return false
+                }
+            },
+            Kind::Special(SpecialKind::Phoenix) => {
+                // match kind of next kard
+                match &cards[i+1].kind {
+                    // phoenix must be followed by normal card
+                    Kind::Regular(_) => {},
+                    _ => return false
+                }
+            },
+            Kind::Special(SpecialKind::One) => {
+                // can be followed by two and phoenix
+                if (cards[i+1].kind != Kind::Special(SpecialKind::Phoenix))
+                    && (cards[i+1].kind != Kind::Regular(RegularKind::Two))
+                {
+                    return false
+                }
+            }
+            _ => return false
+        }
+    }
+    true
 }
 
 
@@ -137,5 +176,29 @@ mod tests {
             Card::regular(RegularKind::King, Color::Red),
         ];
         assert_eq!(find_combination(&hand), Some(Combination::FullHouse));
+    }
+
+    #[test]
+    fn test_find_straight() {
+        // test regular straight
+        let hand = [
+            Card::regular(RegularKind::Three, Color::Blue),
+            Card::regular(RegularKind::Four, Color::Blue),
+            Card::regular(RegularKind::Five, Color::Red),
+            Card::regular(RegularKind::Six, Color::Blue),
+            Card::regular(RegularKind::Seven, Color::Blue),
+        ];
+        assert_eq!(find_combination(&hand), Some(Combination::Straight));
+        // test special straight
+        let hand = [
+            Card::special(SpecialKind::One),
+            Card::regular(RegularKind::Two, Color::Blue),
+            Card::special(SpecialKind::Phoenix),
+            Card::regular(RegularKind::Four, Color::Blue),
+            Card::regular(RegularKind::Five, Color::Blue),
+            Card::regular(RegularKind::Six, Color::Blue),
+            Card::regular(RegularKind::Seven, Color::Blue),
+        ];
+        assert_eq!(find_combination(&hand), Some(Combination::Straight));
     }
 }
