@@ -40,47 +40,50 @@ pub enum Color {
     Blue,
     Green,
     Red,
-    None,
 }
 
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Card {
     pub kind: Kind,
-    pub color: Color,
+    pub color: Option<Color>,
     pub rank: i8,
     pub value: i8,
 }
 
 impl Card {
-    pub fn new(kind: Kind, color: Color) -> Card {
-        let mut c = color;  // change to None if kind is special
+    pub fn regular(kind: RegularKind, color: Color) -> Card {
+        // returns a new regular card
+        let mut rank = (kind as i8) + 2;
+        let mut value = 0;
+        match &kind {
+            RegularKind::Five => value = 5,
+            RegularKind::Ten => value = 10,
+            RegularKind::King => value = 10,
+            _ => {}
+        };
+        // return a card
+        Card {
+            kind: Kind::Regular(kind),
+            color: Some(color),
+            rank: rank,
+            value: value
+        }
+    }
+
+    pub fn special(kind: SpecialKind) -> Card {
+        // returns a new special card
         let mut rank = 0;
         let mut value = 0;
         match &kind {
-            Kind::Special(k) => {
-                c = Color::None;
-                match k {
-                    SpecialKind::Phoenix => {rank = 0; value = -25;},
-                    SpecialKind::Dragon => {rank = 14; value = 25},
-                    _ => {}  // one and dog have rank and value 0
-                }
-            },
-            Kind::Regular(k) => {
-                rank = (*k as i8) + 2;
-                match k {
-                    RegularKind::Five => value = 5,
-                    RegularKind::Ten => value = 10,
-                    RegularKind::King => value = 10,
-                    _ => {}
-                }
-            }
+            SpecialKind::Phoenix => {rank = 0; value = -25;},
+            SpecialKind::Dragon => {rank = 14; value = 25},
+            _ => {}  // one and dog have rank and value 0
         };
-
         // return a card
         Card {
-            kind: kind,
-            color: c,
+            kind: Kind::Special(kind),
+            color: None,
             rank: rank,
             value: value
         }
@@ -118,12 +121,12 @@ impl Deck {
         // add all regular cards to deck
         for color in &[Color::Green, Color::Red, Color::Blue, Color::Black] {
             for kind in RegularKind::iter() {
-                deck.push(Card::new(Kind::Regular(kind), *color));
+                deck.push(Card::regular(kind, *color));
             }
         }
         // add special cards to deck
         for kind in SpecialKind::iter() {
-            deck.push(Card::new(Kind::Special(kind), Color::None));
+            deck.push(Card::special(kind));
         }
         Deck { cards: deck }
     }
@@ -201,32 +204,32 @@ mod tests {
     fn test_check_eq() {
         // check two equals
         assert!(Card::check_eq(
-            &Card::new(Kind::Regular(RegularKind::Three), Color::Blue),
-            &Card::new(Kind::Regular(RegularKind::Three), Color::Black)
+            &Card::regular(RegularKind::Three, Color::Blue),
+            &Card::regular(RegularKind::Three, Color::Black)
         ));
         // check phoenix
         assert!(Card::check_eq(
-            &Card::new(Kind::Special(SpecialKind::Phoenix), Color::None),
-            &Card::new(Kind::Regular(RegularKind::Three), Color::Red)
+            &Card::special(SpecialKind::Phoenix),
+            &Card::regular(RegularKind::Three, Color::Red)
         ));
         assert!(Card::check_eq(
-            &Card::new(Kind::Regular(RegularKind::Three), Color::Green),
-            &Card::new(Kind::Special(SpecialKind::Phoenix), Color::None)
+            &Card::regular(RegularKind::Three, Color::Green),
+            &Card::special(SpecialKind::Phoenix)
         ));
         // check inequality between regular kinds
         assert!(!Card::check_eq(
-            &Card::new(Kind::Regular(RegularKind::Three), Color::Blue),
-            &Card::new(Kind::Regular(RegularKind::Queen), Color::Blue)
+            &Card::regular(RegularKind::Three, Color::Blue),
+            &Card::regular(RegularKind::Queen, Color::Blue)
         ));
         // check inequality between regular and special kind
         assert!(!Card::check_eq(
-            &Card::new(Kind::Special(SpecialKind::One), Color::None),
-            &Card::new(Kind::Regular(RegularKind::Queen), Color::Black)
+            &Card::special(SpecialKind::One),
+            &Card::regular(RegularKind::Queen, Color::Black)
         ));
         // check inequality between two special kinds
         assert!(!Card::check_eq(
-            &Card::new(Kind::Special(SpecialKind::Phoenix), Color::None),
-            &Card::new(Kind::Special(SpecialKind::Dog), Color::Red)
+            &Card::special(SpecialKind::Phoenix),
+            &Card::special(SpecialKind::Dog)
         ));
     }
 }
