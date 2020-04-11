@@ -26,10 +26,15 @@ pub fn find_combination(cards: &[Card]) -> Option<Combination> {
         4 => if check_bomb(cards) { Some(Combination::Bomb) } else { None },
         5 => {
             if check_fullhouse(cards) { Some(Combination::FullHouse) }
+            else if check_straightflush(cards) { Some(Combination::StraightFlush) }
             else if check_straight(cards) { Some(Combination::Straight) }
             else { None }
         },
-        _ => if check_straight(cards) { Some(Combination::Straight) } else { None }
+        _ => {
+            if check_straightflush(cards) { Some(Combination::StraightFlush) }
+            else if check_straight(cards) { Some(Combination::Straight) }
+            else { None }
+        }
     }
 }
 
@@ -94,6 +99,13 @@ fn check_straight(cards: &[Card]) -> bool {
         }
     }
     true
+}
+
+fn check_straightflush(cards: &[Card]) -> bool {
+    // straight with equal colors (this rules out one and phoenix)
+    let allcolors = cards.iter().all(|c| c.color == cards[0].color);
+    let isstraight = check_straight(cards);
+    isstraight && allcolors
 }
 
 
@@ -200,5 +212,17 @@ mod tests {
             Card::regular(RegularKind::Seven, Color::Blue),
         ];
         assert_eq!(find_combination(&hand), Some(Combination::Straight));
+    }
+
+    #[test]
+    fn test_find_straightflush() {
+        let hand = [
+            Card::regular(RegularKind::Three, Color::Blue),
+            Card::regular(RegularKind::Four, Color::Blue),
+            Card::regular(RegularKind::Five, Color::Blue),
+            Card::regular(RegularKind::Six, Color::Blue),
+            Card::regular(RegularKind::Seven, Color::Blue),
+        ];
+        assert_eq!(find_combination(&hand), Some(Combination::StraightFlush));
     }
 }
