@@ -31,7 +31,8 @@ pub fn find_combination(cards: &[Card]) -> Option<Combination> {
             else { None }
         },
         _ => {
-            if check_straightflush(cards) { Some(Combination::StraightFlush) }
+            if check_stairs(cards) { Some(Combination::Stairs) }
+            else if check_straightflush(cards) { Some(Combination::StraightFlush) }
             else if check_straight(cards) { Some(Combination::Straight) }
             else { None }
         }
@@ -106,6 +107,26 @@ fn check_straightflush(cards: &[Card]) -> bool {
     let allcolors = cards.iter().all(|c| c.color == cards[0].color);
     let isstraight = check_straight(cards);
     isstraight && allcolors
+}
+
+fn check_stairs(cards: &[Card]) -> bool {
+    // check if cards consists of consecutive pairs
+    // split every second card into a new vec, check if two vecs are
+    // straights with equal start
+    if cards.len() % 2 != 0 { return false }
+    // check if first two elements are the same
+    if !Card::check_eq(&cards[0], &cards[1]) { return false }
+
+    let mut straight1: Vec<Card> = Vec::new();
+    let mut straight2: Vec<Card> = Vec::new();
+    for card in cards.iter().step_by(2) {
+        straight1.push(*card);
+    }
+    println!("");
+    for card in cards[1..].iter().step_by(2) {
+        straight2.push(*card);
+    }
+    check_straight(&straight1) && check_straight(&straight2)
 }
 
 
@@ -224,5 +245,31 @@ mod tests {
             Card::regular(RegularKind::Seven, Color::Blue),
         ];
         assert_eq!(find_combination(&hand), Some(Combination::StraightFlush));
+    }
+
+    #[test]
+    fn test_find_stairs() {
+        // check valid stair
+        let hand = [
+            Card::regular(RegularKind::Nine, Color::Black),
+            Card::regular(RegularKind::Nine, Color::Green),
+            Card::special(SpecialKind::Phoenix),
+            Card::regular(RegularKind::Ten, Color::Black),
+            Card::regular(RegularKind::Jack, Color::Red),
+            Card::regular(RegularKind::Jack, Color::Black),
+        ];
+        assert_eq!(find_combination(&hand), Some(Combination::Stairs));
+        // check invalid stair
+        let hand = [
+            Card::regular(RegularKind::Nine, Color::Black),
+            Card::regular(RegularKind::Nine, Color::Green),
+            Card::special(SpecialKind::Phoenix),
+            Card::regular(RegularKind::Ten, Color::Black),
+            Card::regular(RegularKind::Jack, Color::Red),
+            Card::regular(RegularKind::Jack, Color::Black),
+            Card::regular(RegularKind::Queen, Color::Green),
+            Card::regular(RegularKind::King, Color::Green)
+        ];
+        assert_eq!(find_combination(&hand), None);
     }
 }

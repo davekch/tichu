@@ -27,7 +27,7 @@ pub enum SpecialKind {
     One,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum Kind {
     Special(SpecialKind),
     Regular(RegularKind),
@@ -43,7 +43,7 @@ pub enum Color {
 }
 
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct Card {
     pub kind: Kind,
     pub color: Option<Color>,
