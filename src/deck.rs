@@ -47,14 +47,14 @@ pub enum Color {
 pub struct Card {
     pub kind: Kind,
     pub color: Option<Color>,
-    pub rank: i8,
-    pub value: i8,
+    pub rank: i16,
+    pub value: i16,
 }
 
 impl Card {
     pub fn regular(kind: RegularKind, color: Color) -> Card {
         // returns a new regular card
-        let mut rank = (kind as i8) + 2;
+        let mut rank = (kind as i16) + 2;
         let mut value = 0;
         match &kind {
             RegularKind::Five => value = 5,

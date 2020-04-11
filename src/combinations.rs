@@ -130,6 +130,35 @@ fn check_stairs(cards: &[Card]) -> bool {
 }
 
 
+pub struct Trick {
+    // implements the combination of cards that is going to be played
+    // this may be a valid combination or not (tricks of invalid combinations
+    // may not be played)
+    pub combination: Option<Combination>,
+    cards: Vec<Card>,  // it must be possible to add and remove cards
+}
+
+impl Trick {
+    pub fn new() -> Trick {
+        Trick {
+            combination: None,
+            cards: Vec::new(),
+        }
+    }
+
+    pub fn insert(&mut self, i: usize, element: Card) {
+        self.cards.insert(i, element);
+        self.combination = find_combination(&self.cards);
+    }
+
+    pub fn remove(&mut self, i: usize) -> Card {
+        let removed = self.cards.remove(i);
+        self.combination = find_combination(&self.cards);
+        removed
+    }
+}
+
+
 
 #[cfg(test)]
 mod tests {
@@ -271,5 +300,18 @@ mod tests {
             Card::regular(RegularKind::King, Color::Green)
         ];
         assert_eq!(find_combination(&hand), None);
+    }
+
+    #[test]
+    fn test_trick() {
+        let mut trick = Trick::new();
+        trick.insert(0, Card::regular(RegularKind::Queen, Color::Red));
+        assert_eq!(trick.combination, Some(Combination::Singlet));
+        trick.insert(1, Card::regular(RegularKind::King, Color::Black));
+        assert_eq!(trick.combination, None);
+        let king = trick.remove(1);
+        assert_eq!(king.kind, Kind::Regular(RegularKind::King));
+        trick.insert(0, Card::special(SpecialKind::Phoenix));
+        assert_eq!(trick.combination, Some(Combination::Doublet));
     }
 }
