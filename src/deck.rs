@@ -54,7 +54,7 @@ pub struct Card {
 impl Card {
     pub fn regular(kind: RegularKind, color: Color) -> Card {
         // returns a new regular card
-        let mut rank = (kind as i16) + 2;
+        let rank = (kind as i16) + 2;
         let mut value = 0;
         match &kind {
             RegularKind::Five => value = 5,
@@ -99,7 +99,7 @@ impl Card {
                     _ => self.kind == other.kind
                 }
             },
-            Kind::Regular(s) => {
+            Kind::Regular(_) => {
                 match other.kind {
                     Kind::Special(SpecialKind::Phoenix) => true,
                     _ => self.kind == other.kind
