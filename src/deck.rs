@@ -27,40 +27,11 @@ pub enum SpecialKind {
     One,
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Kind {
     Special(SpecialKind),
     Regular(RegularKind),
 }
-
-impl PartialEq for Kind {
-    fn eq(&self, other: &Self) -> bool {
-        match self {
-            // the phoenix is "equal" to all regular cards
-            Kind::Special(SpecialKind::Phoenix) => {
-                match other {
-                    Kind::Regular(_) => true,
-                    Kind::Special(o) => *o == SpecialKind::Phoenix
-                }
-            },
-            Kind::Regular(s) => {
-                match other {
-                    Kind::Special(SpecialKind::Phoenix) => true,
-                    Kind::Regular(o) => s == o,
-                    _ => false
-                }
-            },
-            Kind::Special(s) => {
-                match other {
-                    Kind::Regular(_) => false,
-                    Kind::Special(o) => s == o
-                }
-            }
-        }
-    }
-}
-
-impl Eq for Kind {}
 
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
@@ -112,6 +83,26 @@ impl Card {
             color: c,
             rank: rank,
             value: value
+        }
+    }
+
+    pub fn check_eq(&self, other: &Self) -> bool {
+        // check if two cards are considered equal, ignoring color
+        match self.kind {
+            Kind::Special(SpecialKind::Phoenix) => {
+                match other.kind {
+                    // phoenix can be equal to any regular card
+                    Kind::Regular(_) => true,
+                    _ => self.kind == other.kind
+                }
+            },
+            Kind::Regular(s) => {
+                match other.kind {
+                    Kind::Special(SpecialKind::Phoenix) => true,
+                    _ => self.kind == other.kind
+                }
+            },
+            _ => self.kind == other.kind
         }
     }
 }
@@ -207,35 +198,35 @@ mod tests {
     }
 
     #[test]
-    fn test_equal_kinds() {
+    fn test_check_eq() {
         // check two equals
-        assert_eq!(
-            Kind::Regular(RegularKind::Three),
-            Kind::Regular(RegularKind::Three)
-        );
+        assert!(Card::check_eq(
+            &Card::new(Kind::Regular(RegularKind::Three), Color::Blue),
+            &Card::new(Kind::Regular(RegularKind::Three), Color::Black)
+        ));
         // check phoenix
-        assert_eq!(
-            Kind::Special(SpecialKind::Phoenix),
-            Kind::Regular(RegularKind::Three)
-        );
-        assert_eq!(
-            Kind::Regular(RegularKind::Three),
-            Kind::Special(SpecialKind::Phoenix)
-        );
+        assert!(Card::check_eq(
+            &Card::new(Kind::Special(SpecialKind::Phoenix), Color::None),
+            &Card::new(Kind::Regular(RegularKind::Three), Color::Red)
+        ));
+        assert!(Card::check_eq(
+            &Card::new(Kind::Regular(RegularKind::Three), Color::Green),
+            &Card::new(Kind::Special(SpecialKind::Phoenix), Color::None)
+        ));
         // check inequality between regular kinds
-        assert_ne!(
-            Kind::Regular(RegularKind::Three),
-            Kind::Regular(RegularKind::Queen)
-        );
+        assert!(!Card::check_eq(
+            &Card::new(Kind::Regular(RegularKind::Three), Color::Blue),
+            &Card::new(Kind::Regular(RegularKind::Queen), Color::Blue)
+        ));
         // check inequality between regular and special kind
-        assert_ne!(
-            Kind::Special(SpecialKind::One),
-            Kind::Regular(RegularKind::Queen)
-        );
+        assert!(!Card::check_eq(
+            &Card::new(Kind::Special(SpecialKind::One), Color::None),
+            &Card::new(Kind::Regular(RegularKind::Queen), Color::Black)
+        ));
         // check inequality between two special kinds
-        assert_ne!(
-            Kind::Special(SpecialKind::Phoenix),
-            Kind::Special(SpecialKind::Dog)
-        );
+        assert!(!Card::check_eq(
+            &Card::new(Kind::Special(SpecialKind::Phoenix), Color::None),
+            &Card::new(Kind::Special(SpecialKind::Dog), Color::Red)
+        ));
     }
 }
