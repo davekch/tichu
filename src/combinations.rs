@@ -18,7 +18,7 @@ pub enum Combination {
 }
 
 
-pub fn find_combination(cards: &Vec<Card>) -> Option<Combination> {
+pub fn find_combination(cards: &[Card]) -> Option<Combination> {
     match cards.len() {
         1 => Some(Combination::Singlet),
         2 => if check_all_equal(cards) { Some(Combination::Doublet) } else { None },
@@ -28,12 +28,12 @@ pub fn find_combination(cards: &Vec<Card>) -> Option<Combination> {
     }
 }
 
-fn check_all_equal(cards: &Vec<Card>) -> bool {
+fn check_all_equal(cards: &[Card]) -> bool {
     // check if all cards are the same according to check_eq
     cards.iter().all(|c| Card::check_eq(&cards[0], &c))
 }
 
-fn check_bomb(cards: &Vec<Card>) -> bool {
+fn check_bomb(cards: &[Card]) -> bool {
     // check if all 4 cards are regular and equal
     let allregular = cards.iter().all(
         |c| match c.kind {
@@ -61,23 +61,24 @@ mod tests {
         assert_eq!(find_combination(&hand), Some(Combination::Doublet));
     }
 
+    #[test]
     fn test_find_triplet() {
         // check triplet with phoenix
-        let hand = vec![
+        let hand = [
             Card::special(SpecialKind::Phoenix),
             Card::regular(RegularKind::Six, Color::Green),
             Card::regular(RegularKind::Six, Color::Blue),
         ];
         assert_eq!(find_combination(&hand), Some(Combination::Triplet));
         // check triplet without pheonix
-        let hand = vec![
+        let hand = [
             Card::regular(RegularKind::Six, Color::Black),
             Card::regular(RegularKind::Six, Color::Green),
             Card::regular(RegularKind::Six, Color::Blue),
         ];
         assert_eq!(find_combination(&hand), Some(Combination::Triplet));
         // check invalid triplet
-        let hand = vec![
+        let hand = [
             Card::regular(RegularKind::Six, Color::Black),
             Card::regular(RegularKind::Six, Color::Green),
             Card::regular(RegularKind::Seven, Color::Black),
@@ -85,9 +86,10 @@ mod tests {
         assert_eq!(find_combination(&hand), None);
     }
 
+    #[test]
     fn test_find_bomb() {
         // check valid bomb
-        let hand = vec![
+        let hand = [
             Card::regular(RegularKind::Six, Color::Black),
             Card::regular(RegularKind::Six, Color::Green),
             Card::regular(RegularKind::Six, Color::Blue),
@@ -95,12 +97,12 @@ mod tests {
         ];
         assert_eq!(find_combination(&hand), Some(Combination::Bomb));
         // check invalid bomb
-        let hand = vec![
+        let hand = [
             Card::special(SpecialKind::Phoenix),
             Card::regular(RegularKind::Six, Color::Green),
             Card::regular(RegularKind::Six, Color::Blue),
             Card::regular(RegularKind::Six, Color::Red),
         ];
-        assert_eq!(find_combination(&hand), Some(Combination::Bomb));
+        assert_ne!(find_combination(&hand), Some(Combination::Bomb));
     }
 }
