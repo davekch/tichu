@@ -4,8 +4,9 @@ use crate::deck::{
     RegularKind,
     SpecialKind,
 };
+use std::cmp::{min, max};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Combination {
     Singlet,
     Doublet,
@@ -20,6 +21,7 @@ pub enum Combination {
 
 pub fn find_combination(cards: &[Card]) -> Option<Combination> {
     match cards.len() {
+        0 => None,
         1 => Some(Combination::Singlet),
         2 => if check_all_equal(cards) { Some(Combination::Doublet) } else { None },
         3 => if check_all_equal(cards) { Some(Combination::Triplet) } else { None },
@@ -146,6 +148,11 @@ impl Trick {
         }
     }
 
+    pub fn push(&mut self, element: Card) {
+        self.cards.push(element);
+        self.combination = find_combination(&self.cards);
+    }
+
     pub fn insert(&mut self, i: usize, element: Card) {
         self.cards.insert(i, element);
         self.combination = find_combination(&self.cards);
@@ -155,6 +162,129 @@ impl Trick {
         let removed = self.cards.remove(i);
         self.combination = find_combination(&self.cards);
         removed
+    }
+
+    fn total_rank(&self) -> i16 {
+        // compute the sum of all ranks
+        // if there is no phoenix, this is easy enough
+        let nophoenix = self.cards.iter().all(
+            |c| c.kind != Kind::Special(SpecialKind::Phoenix)
+        );
+        if nophoenix {
+            return self.cards.iter().fold(0, |acc, c| acc + c.rank )
+        } else {
+            // rank of the phoenix depends on the kind of combination
+            if self.combination == Some(Combination::FullHouse) {
+                // fullhouse with a phoenix still has at least two different regular
+                // cards -> find them first, and count how many there are
+                let mut card1 = None;
+                let mut card1_count = 0;
+                let mut card2 = None;
+                let mut card2_count = 0;
+                for card in &self.cards {
+                    if card.kind == Kind::Special(SpecialKind::Phoenix) { continue; }
+                    if card1 == None {
+                        card1 = Some(card);
+                        card1_count += 1;
+                    }
+                    else if card2 == None {
+                        card2 = Some(card);
+                        card2_count += 1;
+                    }
+                    else if Some(card) == card1 {
+                        card1_count += 1;
+                    }
+                    else {
+                        card2_count += 1;
+                    }
+                }
+                // if one of the kinds appears three times, the value of the poenix is fixed
+                if card1_count == 3 {
+                    return 3 * card1.unwrap().rank + 2 * card2.unwrap().rank
+                }
+                else if card2_count == 3 {
+                    return 3 * card2.unwrap().rank + 2 * card1.unwrap().rank
+                }
+                else {
+                    // by default the phoenix belongs to the larger part
+                    return 3 * max(card1.unwrap().rank, card2.unwrap().rank) + 2 * min(card1.unwrap().rank, card2.unwrap().rank)
+                }
+            }
+            else if self.combination == Some(Combination::Doublet) {
+                return 2 * Trick::find_nonphoenix_rank(&self.cards)
+            }
+            else if self.combination == Some(Combination::Triplet) {
+                return 3 * Trick::find_nonphoenix_rank(&self.cards)
+            }
+            // don't care about straights and signglets, they are covered in tops without the need of rank
+            return 0
+        }
+    }
+
+    fn find_nonphoenix_rank(cards: &[Card]) -> i16 {
+        // in a set of cards, return the first rank that is not a phoenix
+        for card in cards {
+            if card.kind != Kind::Special(SpecialKind::Phoenix) {
+                return card.rank
+            }
+        }
+        return 0
+    }
+
+    pub fn tops(&self, other: &Self) -> Option<bool> {
+        // check if a trick beats another, returns None if combinations are not compatible
+        if self.combination == None || other.combination == None {
+            return None
+        }
+        let thiscombination = self.combination.unwrap(); // extract the value from Some()
+        let othercombination = other.combination.unwrap();
+        if thiscombination != Combination::Bomb
+            && thiscombination != Combination::StraightFlush
+            && thiscombination != othercombination
+        {
+            return None
+        }
+        // from now on either one of the combinations is bomb or flush or the combinations match
+        // go through all possibilities
+        if thiscombination == Combination::StraightFlush {
+            // beats everything other than a flush and only flush if it's higher or longer
+            return Some(
+                othercombination != Combination::StraightFlush
+                || self.cards.len() > other.cards.len()
+                || self.cards[0].rank > other.cards[0].rank
+            )
+        }
+        else if thiscombination == Combination::Bomb {
+            // beats everything except flushs and higher bombs
+            return Some(
+                (othercombination == Combination::Bomb
+                && self.cards[0].rank > other.cards[0].rank)
+                || othercombination != Combination::StraightFlush
+            )
+        }
+        else if thiscombination == Combination::Straight {
+            // tops if it is longer or higher
+            if self.cards.len() > other.cards.len() { return Some(true) }
+            // if they are equally long, compare starting or end rank (avoid phoenix)
+            else if self.cards[0].kind == Kind::Special(SpecialKind::Phoenix)
+                    || other.cards[0].kind == Kind::Special(SpecialKind::Phoenix)
+            {
+                return Some(self.cards[self.cards.len()].rank > other.cards[other.cards.len()].rank)
+            }
+            else {
+                return Some(self.cards[0].rank > other.cards[0].rank)
+            }
+        }
+        else if thiscombination == Combination::Singlet {
+            if self.cards[0].kind == Kind::Special(SpecialKind::Dragon) { return Some(true) }
+            else if self.cards[0].kind == Kind::Special(SpecialKind::Phoenix)
+                && other.cards[0].kind != Kind::Special(SpecialKind::Dragon) { return Some(true) }
+            else { return Some(self.cards[0].rank > other.cards[0].rank) }
+        }
+        else {
+            // tops if it is higher ranked
+            return Some(self.total_rank() > other.total_rank())
+        }
     }
 }
 
@@ -313,5 +443,57 @@ mod tests {
         assert_eq!(king.kind, Kind::Regular(RegularKind::King));
         trick.insert(0, Card::special(SpecialKind::Phoenix));
         assert_eq!(trick.combination, Some(Combination::Doublet));
+    }
+
+    #[test]
+    fn test_tops_bomb() {
+        let mut bomb = Trick::new();
+        bomb.push(Card::regular(RegularKind::King, Color::Red));
+        bomb.push(Card::regular(RegularKind::King, Color::Blue));
+        bomb.push(Card::regular(RegularKind::King, Color::Green));
+        bomb.push(Card::regular(RegularKind::King, Color::Black));
+        let mut something = Trick::new();
+        something.push(Card::regular(RegularKind::Ten, Color::Blue));
+        something.push(Card::regular(RegularKind::Ten, Color::Green));
+        assert_eq!(bomb.tops(&something), Some(true));
+        assert_eq!(something.tops(&bomb), None);  // not compatible
+    }
+
+    #[test]
+    fn test_tops_doublet() {
+        let mut trick1 = Trick::new();
+        trick1.push(Card::regular(RegularKind::Five, Color::Black));
+        trick1.push(Card::regular(RegularKind::Five, Color::Blue));
+        let mut trick2 = Trick::new();
+        trick2.push(Card::regular(RegularKind::Ten, Color::Red));
+        trick2.push(Card::regular(RegularKind::Ten, Color::Blue));
+        assert_eq!(trick2.tops(&trick1), Some(true));
+        assert_eq!(trick1.tops(&trick2), Some(false));
+        // check with phoenix
+        let mut trick3 = Trick::new();
+        trick3.push(Card::regular(RegularKind::Ten, Color::Red));
+        trick3.push(Card::special(SpecialKind::Phoenix));
+        assert_eq!(trick3.tops(&trick1), Some(true));
+    }
+
+    #[test]
+    fn test_tops_fullhouse() {
+        // construct a regular fullhouse
+        let mut trick1 = Trick::new();
+        trick1.push(Card::regular(RegularKind::Six, Color::Blue));
+        trick1.push(Card::regular(RegularKind::Six, Color::Green));
+        trick1.push(Card::regular(RegularKind::Two, Color::Blue));
+        trick1.push(Card::regular(RegularKind::Two, Color::Black));
+        trick1.push(Card::regular(RegularKind::Two, Color::Green));
+        println!("trick1 rank {}", trick1.total_rank());
+        // construct a bigger fullhouse with phoenix
+        let mut trick2 = Trick::new();
+        trick2.push(Card::regular(RegularKind::Six, Color::Blue));
+        trick2.push(Card::regular(RegularKind::Six, Color::Green));
+        trick2.push(Card::special(SpecialKind::Phoenix));
+        trick2.push(Card::regular(RegularKind::Two, Color::Black));
+        trick2.push(Card::regular(RegularKind::Two, Color::Green));
+        println!("trick2 rank {}", trick2.total_rank());
+        assert_eq!(trick2.tops(&trick1), Some(true));
     }
 }
