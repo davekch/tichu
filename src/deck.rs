@@ -1,7 +1,7 @@
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use strum::IntoEnumIterator; // iterate over static enum
 use strum_macros::EnumIter;
-use rand::thread_rng;
-use rand::seq::SliceRandom;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, EnumIter)]
 pub enum RegularKind {
@@ -33,7 +33,6 @@ pub enum Kind {
     Regular(RegularKind),
 }
 
-
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum Color {
     Black,
@@ -41,7 +40,6 @@ pub enum Color {
     Green,
     Red,
 }
-
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct Card {
@@ -67,7 +65,7 @@ impl Card {
             kind: Kind::Regular(kind),
             color: Some(color),
             rank: rank,
-            value: value
+            value: value,
         }
     }
 
@@ -76,16 +74,22 @@ impl Card {
         let mut rank = 0;
         let mut value = 0;
         match &kind {
-            SpecialKind::Phoenix => {rank = 0; value = -25;},
-            SpecialKind::Dragon => {rank = 14; value = 25},
-            _ => {}  // one and dog have rank and value 0
+            SpecialKind::Phoenix => {
+                rank = 0;
+                value = -25;
+            }
+            SpecialKind::Dragon => {
+                rank = 14;
+                value = 25
+            }
+            _ => {} // one and dog have rank and value 0
         };
         // return a card
         Card {
             kind: Kind::Special(kind),
             color: None,
             rank: rank,
-            value: value
+            value: value,
         }
     }
 
@@ -96,20 +100,17 @@ impl Card {
                 match other.kind {
                     // phoenix can be equal to any regular card
                     Kind::Regular(_) => true,
-                    _ => self.kind == other.kind
+                    _ => self.kind == other.kind,
                 }
+            }
+            Kind::Regular(_) => match other.kind {
+                Kind::Special(SpecialKind::Phoenix) => true,
+                _ => self.kind == other.kind,
             },
-            Kind::Regular(_) => {
-                match other.kind {
-                    Kind::Special(SpecialKind::Phoenix) => true,
-                    _ => self.kind == other.kind
-                }
-            },
-            _ => self.kind == other.kind
+            _ => self.kind == other.kind,
         }
     }
 }
-
 
 pub struct Deck {
     pub cards: Vec<Card>,
@@ -144,15 +145,13 @@ impl Deck {
                 let card = self.cards.pop();
                 match card {
                     Some(c) => hand.push(c),
-                    _ => {}  // never happens on a full deck anyway
+                    _ => {} // never happens on a full deck anyway
                 };
             }
         }
         hands
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -169,11 +168,7 @@ mod tests {
     fn test_new_deck_unique() {
         let deck = Deck::new();
         // remove dublicates
-        let unique_deck: Vec<Card> = deck.cards
-            .clone()
-            .into_iter()
-            .unique()
-            .collect();
+        let unique_deck: Vec<Card> = deck.cards.clone().into_iter().unique().collect();
         assert_eq!(deck.cards, unique_deck);
     }
 

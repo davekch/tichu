@@ -1,10 +1,5 @@
-use crate::deck::{
-    Card,
-    Kind,
-    RegularKind,
-    SpecialKind,
-};
-use std::cmp::{min, max};
+use crate::deck::{Card, Kind, RegularKind, SpecialKind};
+use std::cmp::{max, min};
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Combination {
@@ -18,25 +13,52 @@ pub enum Combination {
     StraightFlush,
 }
 
-
 pub fn find_combination(cards: &[Card]) -> Option<Combination> {
     match cards.len() {
         0 => None,
         1 => Some(Combination::Singlet),
-        2 => if check_all_equal(cards) { Some(Combination::Doublet) } else { None },
-        3 => if check_all_equal(cards) { Some(Combination::Triplet) } else { None },
-        4 => if check_bomb(cards) { Some(Combination::Bomb) } else { None },
+        2 => {
+            if check_all_equal(cards) {
+                Some(Combination::Doublet)
+            } else {
+                None
+            }
+        }
+        3 => {
+            if check_all_equal(cards) {
+                Some(Combination::Triplet)
+            } else {
+                None
+            }
+        }
+        4 => {
+            if check_bomb(cards) {
+                Some(Combination::Bomb)
+            } else {
+                None
+            }
+        }
         5 => {
-            if check_fullhouse(cards) { Some(Combination::FullHouse) }
-            else if check_straightflush(cards) { Some(Combination::StraightFlush) }
-            else if check_straight(cards) { Some(Combination::Straight) }
-            else { None }
-        },
+            if check_fullhouse(cards) {
+                Some(Combination::FullHouse)
+            } else if check_straightflush(cards) {
+                Some(Combination::StraightFlush)
+            } else if check_straight(cards) {
+                Some(Combination::Straight)
+            } else {
+                None
+            }
+        }
         _ => {
-            if check_stairs(cards) { Some(Combination::Stairs) }
-            else if check_straightflush(cards) { Some(Combination::StraightFlush) }
-            else if check_straight(cards) { Some(Combination::Straight) }
-            else { None }
+            if check_stairs(cards) {
+                Some(Combination::Stairs)
+            } else if check_straightflush(cards) {
+                Some(Combination::StraightFlush)
+            } else if check_straight(cards) {
+                Some(Combination::Straight)
+            } else {
+                None
+            }
         }
     }
 }
@@ -48,12 +70,10 @@ fn check_all_equal(cards: &[Card]) -> bool {
 
 fn check_bomb(cards: &[Card]) -> bool {
     // check if all 4 cards are regular and equal
-    let allregular = cards.iter().all(
-        |c| match c.kind {
-            Kind::Regular(_) => true,
-            _ => false
-        }
-    );
+    let allregular = cards.iter().all(|c| match c.kind {
+        Kind::Regular(_) => true,
+        _ => false,
+    });
     let allequal = check_all_equal(cards);
     allequal && allregular
 }
@@ -71,34 +91,38 @@ fn check_straight(cards: &[Card]) -> bool {
     // for every card in cards check if the next card is one rank above.
     // if it is, continue, if it isn't return false.
     // at the end, return true
-    for i in 0..(cards.len()-1) {
+    for i in 0..(cards.len() - 1) {
         // match kind of current card
         match &cards[i].kind {
             Kind::Regular(_) => {
                 // match kind of next card
-                match &cards[i+1].kind {
-                    Kind::Regular(_) => if cards[i].rank + 1 != cards[i+1].rank { return false },
-                    Kind::Special(SpecialKind::Phoenix) => {},
-                    _ => return false
-                }
-            },
-            Kind::Special(SpecialKind::Phoenix) => {
-                // match kind of next kard
-                match &cards[i+1].kind {
-                    // phoenix must be followed by normal card
-                    Kind::Regular(_) => {},
-                    _ => return false
-                }
-            },
-            Kind::Special(SpecialKind::One) => {
-                // can be followed by two and phoenix
-                if (cards[i+1].kind != Kind::Special(SpecialKind::Phoenix))
-                    && (cards[i+1].kind != Kind::Regular(RegularKind::Two))
-                {
-                    return false
+                match &cards[i + 1].kind {
+                    Kind::Regular(_) => {
+                        if cards[i].rank + 1 != cards[i + 1].rank {
+                            return false;
+                        }
+                    }
+                    Kind::Special(SpecialKind::Phoenix) => {}
+                    _ => return false,
                 }
             }
-            _ => return false
+            Kind::Special(SpecialKind::Phoenix) => {
+                // match kind of next kard
+                match &cards[i + 1].kind {
+                    // phoenix must be followed by normal card
+                    Kind::Regular(_) => {}
+                    _ => return false,
+                }
+            }
+            Kind::Special(SpecialKind::One) => {
+                // can be followed by two and phoenix
+                if (cards[i + 1].kind != Kind::Special(SpecialKind::Phoenix))
+                    && (cards[i + 1].kind != Kind::Regular(RegularKind::Two))
+                {
+                    return false;
+                }
+            }
+            _ => return false,
         }
     }
     true
@@ -115,9 +139,13 @@ fn check_stairs(cards: &[Card]) -> bool {
     // check if cards consists of consecutive pairs
     // split every second card into a new vec, check if two vecs are
     // straights with equal start
-    if cards.len() % 2 != 0 { return false }
+    if cards.len() % 2 != 0 {
+        return false;
+    }
     // check if first two elements are the same
-    if !Card::check_eq(&cards[0], &cards[1]) { return false }
+    if !Card::check_eq(&cards[0], &cards[1]) {
+        return false;
+    }
 
     let mut straight1: Vec<Card> = Vec::new();
     let mut straight2: Vec<Card> = Vec::new();
@@ -131,13 +159,12 @@ fn check_stairs(cards: &[Card]) -> bool {
     check_straight(&straight1) && check_straight(&straight2)
 }
 
-
 pub struct Trick {
     // implements the combination of cards that is going to be played
     // this may be a valid combination or not (tricks of invalid combinations
     // may not be played)
     pub combination: Option<Combination>,
-    cards: Vec<Card>,  // it must be possible to add and remove cards
+    cards: Vec<Card>, // it must be possible to add and remove cards
 }
 
 impl Trick {
@@ -167,11 +194,12 @@ impl Trick {
     fn total_rank(&self) -> i16 {
         // compute the sum of all ranks
         // if there is no phoenix, this is easy enough
-        let nophoenix = self.cards.iter().all(
-            |c| c.kind != Kind::Special(SpecialKind::Phoenix)
-        );
+        let nophoenix = self
+            .cards
+            .iter()
+            .all(|c| c.kind != Kind::Special(SpecialKind::Phoenix));
         if nophoenix {
-            return self.cards.iter().fold(0, |acc, c| acc + c.rank )
+            return self.cards.iter().fold(0, |acc, c| acc + c.rank);
         } else {
             // rank of the phoenix depends on the kind of combination
             if self.combination == Some(Combination::FullHouse) {
@@ -182,42 +210,38 @@ impl Trick {
                 let mut card2 = None;
                 let mut card2_count = 0;
                 for card in &self.cards {
-                    if card.kind == Kind::Special(SpecialKind::Phoenix) { continue; }
+                    if card.kind == Kind::Special(SpecialKind::Phoenix) {
+                        continue;
+                    }
                     if card1 == None {
                         card1 = Some(card);
                         card1_count += 1;
-                    }
-                    else if card2 == None {
+                    } else if card2 == None {
                         card2 = Some(card);
                         card2_count += 1;
-                    }
-                    else if Some(card) == card1 {
+                    } else if Some(card) == card1 {
                         card1_count += 1;
-                    }
-                    else {
+                    } else {
                         card2_count += 1;
                     }
                 }
                 // if one of the kinds appears three times, the value of the poenix is fixed
                 if card1_count == 3 {
-                    return 3 * card1.unwrap().rank + 2 * card2.unwrap().rank
-                }
-                else if card2_count == 3 {
-                    return 3 * card2.unwrap().rank + 2 * card1.unwrap().rank
-                }
-                else {
+                    return 3 * card1.unwrap().rank + 2 * card2.unwrap().rank;
+                } else if card2_count == 3 {
+                    return 3 * card2.unwrap().rank + 2 * card1.unwrap().rank;
+                } else {
                     // by default the phoenix belongs to the larger part
-                    return 3 * max(card1.unwrap().rank, card2.unwrap().rank) + 2 * min(card1.unwrap().rank, card2.unwrap().rank)
+                    return 3 * max(card1.unwrap().rank, card2.unwrap().rank)
+                        + 2 * min(card1.unwrap().rank, card2.unwrap().rank);
                 }
-            }
-            else if self.combination == Some(Combination::Doublet) {
-                return 2 * Trick::find_nonphoenix_rank(&self.cards)
-            }
-            else if self.combination == Some(Combination::Triplet) {
-                return 3 * Trick::find_nonphoenix_rank(&self.cards)
+            } else if self.combination == Some(Combination::Doublet) {
+                return 2 * Trick::find_nonphoenix_rank(&self.cards);
+            } else if self.combination == Some(Combination::Triplet) {
+                return 3 * Trick::find_nonphoenix_rank(&self.cards);
             }
             // don't care about straights and signglets, they are covered in tops without the need of rank
-            return 0
+            return 0;
         }
     }
 
@@ -225,16 +249,16 @@ impl Trick {
         // in a set of cards, return the first rank that is not a phoenix
         for card in cards {
             if card.kind != Kind::Special(SpecialKind::Phoenix) {
-                return card.rank
+                return card.rank;
             }
         }
-        return 0
+        return 0;
     }
 
     pub fn tops(&self, other: &Self) -> Option<bool> {
         // check if a trick beats another, returns None if combinations are not compatible
         if self.combination == None || other.combination == None {
-            return None
+            return None;
         }
         let thiscombination = self.combination.unwrap(); // extract the value from Some()
         let othercombination = other.combination.unwrap();
@@ -242,7 +266,7 @@ impl Trick {
             && thiscombination != Combination::StraightFlush
             && thiscombination != othercombination
         {
-            return None
+            return None;
         }
         // from now on either one of the combinations is bomb or flush or the combinations match
         // go through all possibilities
@@ -250,45 +274,46 @@ impl Trick {
             // beats everything other than a flush and only flush if it's higher or longer
             return Some(
                 othercombination != Combination::StraightFlush
-                || self.cards.len() > other.cards.len()
-                || self.cards[0].rank > other.cards[0].rank
-            )
-        }
-        else if thiscombination == Combination::Bomb {
+                    || self.cards.len() > other.cards.len()
+                    || self.cards[0].rank > other.cards[0].rank,
+            );
+        } else if thiscombination == Combination::Bomb {
             // beats everything except flushs and higher bombs
             return Some(
-                (othercombination == Combination::Bomb
-                && self.cards[0].rank > other.cards[0].rank)
-                || othercombination != Combination::StraightFlush
-            )
-        }
-        else if thiscombination == Combination::Straight {
+                (othercombination == Combination::Bomb && self.cards[0].rank > other.cards[0].rank)
+                    || othercombination != Combination::StraightFlush,
+            );
+        } else if thiscombination == Combination::Straight {
             // tops if it is longer or higher
-            if self.cards.len() > other.cards.len() { return Some(true) }
+            if self.cards.len() > other.cards.len() {
+                return Some(true);
+            }
             // if they are equally long, compare starting or end rank (avoid phoenix)
             else if self.cards[0].kind == Kind::Special(SpecialKind::Phoenix)
-                    || other.cards[0].kind == Kind::Special(SpecialKind::Phoenix)
+                || other.cards[0].kind == Kind::Special(SpecialKind::Phoenix)
             {
-                return Some(self.cards[self.cards.len()].rank > other.cards[other.cards.len()].rank)
+                return Some(
+                    self.cards[self.cards.len()].rank > other.cards[other.cards.len()].rank,
+                );
+            } else {
+                return Some(self.cards[0].rank > other.cards[0].rank);
             }
-            else {
-                return Some(self.cards[0].rank > other.cards[0].rank)
+        } else if thiscombination == Combination::Singlet {
+            if self.cards[0].kind == Kind::Special(SpecialKind::Dragon) {
+                return Some(true);
+            } else if self.cards[0].kind == Kind::Special(SpecialKind::Phoenix)
+                && other.cards[0].kind != Kind::Special(SpecialKind::Dragon)
+            {
+                return Some(true);
+            } else {
+                return Some(self.cards[0].rank > other.cards[0].rank);
             }
-        }
-        else if thiscombination == Combination::Singlet {
-            if self.cards[0].kind == Kind::Special(SpecialKind::Dragon) { return Some(true) }
-            else if self.cards[0].kind == Kind::Special(SpecialKind::Phoenix)
-                && other.cards[0].kind != Kind::Special(SpecialKind::Dragon) { return Some(true) }
-            else { return Some(self.cards[0].rank > other.cards[0].rank) }
-        }
-        else {
+        } else {
             // tops if it is higher ranked
-            return Some(self.total_rank() > other.total_rank())
+            return Some(self.total_rank() > other.total_rank());
         }
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -299,7 +324,7 @@ mod tests {
     fn test_find_doublet() {
         let hand = vec![
             Card::regular(RegularKind::Six, Color::Green),
-            Card::special(SpecialKind::Phoenix)
+            Card::special(SpecialKind::Phoenix),
         ];
         assert_eq!(find_combination(&hand), Some(Combination::Doublet));
     }
@@ -427,7 +452,7 @@ mod tests {
             Card::regular(RegularKind::Jack, Color::Red),
             Card::regular(RegularKind::Jack, Color::Black),
             Card::regular(RegularKind::Queen, Color::Green),
-            Card::regular(RegularKind::King, Color::Green)
+            Card::regular(RegularKind::King, Color::Green),
         ];
         assert_eq!(find_combination(&hand), None);
     }
@@ -456,7 +481,7 @@ mod tests {
         something.push(Card::regular(RegularKind::Ten, Color::Blue));
         something.push(Card::regular(RegularKind::Ten, Color::Green));
         assert_eq!(bomb.tops(&something), Some(true));
-        assert_eq!(something.tops(&bomb), None);  // not compatible
+        assert_eq!(something.tops(&bomb), None); // not compatible
     }
 
     #[test]
