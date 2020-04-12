@@ -194,46 +194,52 @@ impl Trick {
     fn total_rank(&self) -> i16 {
         // compute the sum of all ranks
         // if there is no phoenix, this is easy enough
-        let nophoenix = self
-            .cards
-            .iter()
-            .all(|c| c.kind != Kind::Special(SpecialKind::Phoenix));
-        if nophoenix {
+        if Trick::no_phoenix(&self.cards) {
             return self.cards.iter().fold(0, |acc, c| acc + c.rank);
         } else {
             // rank of the phoenix depends on the kind of combination
             if self.combination == Some(Combination::FullHouse) {
-                // fullhouse with a phoenix still has at least two different regular
-                // cards -> find them first, and count how many there are
-                let mut card1 = None;
-                let mut card1_count = 0;
-                let mut card2 = None;
-                let mut card2_count = 0;
-                for card in &self.cards {
-                    if card.kind == Kind::Special(SpecialKind::Phoenix) {
-                        continue;
-                    }
-                    if card1 == None {
-                        card1 = Some(card);
-                        card1_count += 1;
-                    } else if card2 == None {
-                        card2 = Some(card);
-                        card2_count += 1;
-                    } else if Some(card) == card1 {
-                        card1_count += 1;
+                // split cases between 2 + 3 fullhouses and 3 + 2
+                let first_two = check_all_equal(&self.cards[0..2]);
+                let last_three = check_all_equal(&self.cards[2..5]);
+                if first_two && last_three {
+                    // find the phoenix
+                    // if the phoenix is in the last three, its rank is ambiguous
+                    // in this case, take the phoenix to be the higher ranked card
+                    if Trick::no_phoenix(&self.cards[0..2]) {
+                        let doublet_rank = 2 * min(
+                            self.cards[0].rank,
+                            Trick::find_nonphoenix_rank(&self.cards[2..5]),
+                        );
+                        let triplet_rank = 3 * max(
+                            self.cards[0].rank,
+                            Trick::find_nonphoenix_rank(&self.cards[2..5]),
+                        );
+                        return doublet_rank + triplet_rank;
                     } else {
-                        card2_count += 1;
+                        // in the other case the phoenix forms the doublet
+                        return 2 * Trick::find_nonphoenix_rank(&self.cards[0..2])
+                            + 3 * self.cards[2].rank;
                     }
-                }
-                // if one of the kinds appears three times, the value of the poenix is fixed
-                if card1_count == 3 {
-                    return 3 * card1.unwrap().rank + 2 * card2.unwrap().rank;
-                } else if card2_count == 3 {
-                    return 3 * card2.unwrap().rank + 2 * card1.unwrap().rank;
                 } else {
-                    // by default the phoenix belongs to the larger part
-                    return 3 * max(card1.unwrap().rank, card2.unwrap().rank)
-                        + 2 * min(card1.unwrap().rank, card2.unwrap().rank);
+                    // the fullhouse is 3 + 2
+                    // find phoenix again
+                    if Trick::no_phoenix(&self.cards[0..3]) {
+                        // the phoenix builds the doublet
+                        return 2 * Trick::find_nonphoenix_rank(&self.cards[3..5])
+                            + 3 * self.cards[0].rank;
+                    } else {
+                        // phoenix is ambiguous again
+                        let doublet_rank = 2 * min(
+                            Trick::find_nonphoenix_rank(&self.cards[0..3]),
+                            self.cards[3].rank,
+                        );
+                        let triplet_rank = 3 * max(
+                            Trick::find_nonphoenix_rank(&self.cards[0..3]),
+                            self.cards[3].rank,
+                        );
+                        return doublet_rank + triplet_rank;
+                    }
                 }
             } else if self.combination == Some(Combination::Doublet) {
                 return 2 * Trick::find_nonphoenix_rank(&self.cards);
@@ -243,6 +249,13 @@ impl Trick {
             // don't care about straights and signglets, they are covered in tops without the need of rank
             return 0;
         }
+    }
+
+    fn no_phoenix(cards: &[Card]) -> bool {
+        // check if there is no phoenix in cards
+        return cards
+            .iter()
+            .all(|c| c.kind != Kind::Special(SpecialKind::Phoenix));
     }
 
     fn find_nonphoenix_rank(cards: &[Card]) -> i16 {
