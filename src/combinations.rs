@@ -13,7 +13,7 @@ pub enum Combination {
     StraightFlush,
 }
 
-pub fn find_combination(cards: &[Card]) -> Option<Combination> {
+pub fn find_combination(cards: &[&Card]) -> Option<Combination> {
     match cards.len() {
         0 => None,
         1 => Some(Combination::Singlet),
@@ -63,12 +63,12 @@ pub fn find_combination(cards: &[Card]) -> Option<Combination> {
     }
 }
 
-fn check_all_equal(cards: &[Card]) -> bool {
+fn check_all_equal(cards: &[&Card]) -> bool {
     // check if all cards are the same according to check_eq
     cards.iter().all(|c| Card::check_eq(&cards[0], &c))
 }
 
-fn check_bomb(cards: &[Card]) -> bool {
+fn check_bomb(cards: &[&Card]) -> bool {
     // check if all 4 cards are regular and equal
     let allregular = cards.iter().all(|c| match c.kind {
         Kind::Regular(_) => true,
@@ -78,7 +78,7 @@ fn check_bomb(cards: &[Card]) -> bool {
     allequal && allregular
 }
 
-fn check_fullhouse(cards: &[Card]) -> bool {
+fn check_fullhouse(cards: &[&Card]) -> bool {
     let first_two = check_all_equal(&cards[0..2]);
     let last_three = check_all_equal(&cards[2..5]);
     let first_three = check_all_equal(&cards[0..3]);
@@ -86,7 +86,7 @@ fn check_fullhouse(cards: &[Card]) -> bool {
     (first_two && last_three) || (first_three && last_two)
 }
 
-fn check_straight(cards: &[Card]) -> bool {
+fn check_straight(cards: &[&Card]) -> bool {
     // check if all cards are consecutive, allowing one and phoenix
     // for every card in cards check if the next card is one rank above.
     // if it is, continue, if it isn't return false.
@@ -128,14 +128,14 @@ fn check_straight(cards: &[Card]) -> bool {
     true
 }
 
-fn check_straightflush(cards: &[Card]) -> bool {
+fn check_straightflush(cards: &[&Card]) -> bool {
     // straight with equal colors (this rules out one and phoenix)
     let allcolors = cards.iter().all(|c| c.color == cards[0].color);
     let isstraight = check_straight(cards);
     isstraight && allcolors
 }
 
-fn check_stairs(cards: &[Card]) -> bool {
+fn check_stairs(cards: &[&Card]) -> bool {
     // check if cards consists of consecutive pairs
     // split every second card into a new vec, check if two vecs are
     // straights with equal start
@@ -147,8 +147,8 @@ fn check_stairs(cards: &[Card]) -> bool {
         return false;
     }
 
-    let mut straight1: Vec<Card> = Vec::new();
-    let mut straight2: Vec<Card> = Vec::new();
+    let mut straight1: Vec<&Card> = Vec::new();
+    let mut straight2: Vec<&Card> = Vec::new();
     for card in cards.iter().step_by(2) {
         straight1.push(*card);
     }
@@ -159,33 +159,33 @@ fn check_stairs(cards: &[Card]) -> bool {
     check_straight(&straight1) && check_straight(&straight2)
 }
 
-pub struct Trick {
+pub struct Trick<'a> {
     // implements the combination of cards that is going to be played
     // this may be a valid combination or not (tricks of invalid combinations
     // may not be played)
     pub combination: Option<Combination>,
-    cards: Vec<Card>, // it must be possible to add and remove cards
+    cards: Vec<&'a Card>, // it must be possible to add and remove cards
 }
 
-impl Trick {
-    pub fn new() -> Trick {
+impl<'a> Trick<'a> {
+    pub fn new() -> Trick<'a> {
         Trick {
             combination: None,
             cards: Vec::new(),
         }
     }
 
-    pub fn push(&mut self, element: Card) {
+    pub fn push(&mut self, element: &'a Card) {
         self.cards.push(element);
         self.combination = find_combination(&self.cards);
     }
 
-    pub fn insert(&mut self, i: usize, element: Card) {
+    pub fn insert(&mut self, i: usize, element: &'a Card) {
         self.cards.insert(i, element);
         self.combination = find_combination(&self.cards);
     }
 
-    pub fn remove(&mut self, i: usize) -> Card {
+    pub fn remove(&mut self, i: usize) -> &'a Card {
         let removed = self.cards.remove(i);
         self.combination = find_combination(&self.cards);
         removed
@@ -251,14 +251,14 @@ impl Trick {
         }
     }
 
-    fn no_phoenix(cards: &[Card]) -> bool {
+    fn no_phoenix(cards: &[&Card]) -> bool {
         // check if there is no phoenix in cards
         return cards
             .iter()
             .all(|c| c.kind != Kind::Special(SpecialKind::Phoenix));
     }
 
-    fn find_nonphoenix_rank(cards: &[Card]) -> i16 {
+    fn find_nonphoenix_rank(cards: &[&Card]) -> i16 {
         // in a set of cards, return the first rank that is not a phoenix
         for card in cards {
             if card.kind != Kind::Special(SpecialKind::Phoenix) {
@@ -335,9 +335,9 @@ mod tests {
 
     #[test]
     fn test_find_doublet() {
-        let hand = vec![
-            Card::regular(RegularKind::Six, Color::Green),
-            Card::special(SpecialKind::Phoenix),
+        let hand = [
+            &Card::regular(RegularKind::Six, Color::Green),
+            &Card::special(SpecialKind::Phoenix),
         ];
         assert_eq!(find_combination(&hand), Some(Combination::Doublet));
     }
@@ -346,23 +346,23 @@ mod tests {
     fn test_find_triplet() {
         // check triplet with phoenix
         let hand = [
-            Card::special(SpecialKind::Phoenix),
-            Card::regular(RegularKind::Six, Color::Green),
-            Card::regular(RegularKind::Six, Color::Blue),
+            &Card::special(SpecialKind::Phoenix),
+            &Card::regular(RegularKind::Six, Color::Green),
+            &Card::regular(RegularKind::Six, Color::Blue),
         ];
         assert_eq!(find_combination(&hand), Some(Combination::Triplet));
         // check triplet without pheonix
         let hand = [
-            Card::regular(RegularKind::Six, Color::Black),
-            Card::regular(RegularKind::Six, Color::Green),
-            Card::regular(RegularKind::Six, Color::Blue),
+            &Card::regular(RegularKind::Six, Color::Black),
+            &Card::regular(RegularKind::Six, Color::Green),
+            &Card::regular(RegularKind::Six, Color::Blue),
         ];
         assert_eq!(find_combination(&hand), Some(Combination::Triplet));
         // check invalid triplet
         let hand = [
-            Card::regular(RegularKind::Six, Color::Black),
-            Card::regular(RegularKind::Six, Color::Green),
-            Card::regular(RegularKind::Seven, Color::Black),
+            &Card::regular(RegularKind::Six, Color::Black),
+            &Card::regular(RegularKind::Six, Color::Green),
+            &Card::regular(RegularKind::Seven, Color::Black),
         ];
         assert_eq!(find_combination(&hand), None);
     }
@@ -371,18 +371,18 @@ mod tests {
     fn test_find_bomb() {
         // check valid bomb
         let hand = [
-            Card::regular(RegularKind::Six, Color::Black),
-            Card::regular(RegularKind::Six, Color::Green),
-            Card::regular(RegularKind::Six, Color::Blue),
-            Card::regular(RegularKind::Six, Color::Red),
+            &Card::regular(RegularKind::Six, Color::Black),
+            &Card::regular(RegularKind::Six, Color::Green),
+            &Card::regular(RegularKind::Six, Color::Blue),
+            &Card::regular(RegularKind::Six, Color::Red),
         ];
         assert_eq!(find_combination(&hand), Some(Combination::Bomb));
         // check invalid bomb
         let hand = [
-            Card::special(SpecialKind::Phoenix),
-            Card::regular(RegularKind::Six, Color::Green),
-            Card::regular(RegularKind::Six, Color::Blue),
-            Card::regular(RegularKind::Six, Color::Red),
+            &Card::special(SpecialKind::Phoenix),
+            &Card::regular(RegularKind::Six, Color::Green),
+            &Card::regular(RegularKind::Six, Color::Blue),
+            &Card::regular(RegularKind::Six, Color::Red),
         ];
         assert_ne!(find_combination(&hand), Some(Combination::Bomb));
     }
@@ -391,19 +391,19 @@ mod tests {
     fn test_find_fullhouse() {
         // test valid fullhouse
         let hand = [
-            Card::regular(RegularKind::Six, Color::Black),
-            Card::regular(RegularKind::Six, Color::Green),
-            Card::regular(RegularKind::King, Color::Green),
-            Card::regular(RegularKind::King, Color::Blue),
-            Card::regular(RegularKind::King, Color::Red),
+            &Card::regular(RegularKind::Six, Color::Black),
+            &Card::regular(RegularKind::Six, Color::Green),
+            &Card::regular(RegularKind::King, Color::Green),
+            &Card::regular(RegularKind::King, Color::Blue),
+            &Card::regular(RegularKind::King, Color::Red),
         ];
         assert_eq!(find_combination(&hand), Some(Combination::FullHouse));
         let hand = [
-            Card::regular(RegularKind::Six, Color::Black),
-            Card::regular(RegularKind::Six, Color::Green),
-            Card::special(SpecialKind::Phoenix),
-            Card::regular(RegularKind::King, Color::Blue),
-            Card::regular(RegularKind::King, Color::Red),
+            &Card::regular(RegularKind::Six, Color::Black),
+            &Card::regular(RegularKind::Six, Color::Green),
+            &Card::special(SpecialKind::Phoenix),
+            &Card::regular(RegularKind::King, Color::Blue),
+            &Card::regular(RegularKind::King, Color::Red),
         ];
         assert_eq!(find_combination(&hand), Some(Combination::FullHouse));
     }
@@ -412,22 +412,22 @@ mod tests {
     fn test_find_straight() {
         // test regular straight
         let hand = [
-            Card::regular(RegularKind::Three, Color::Blue),
-            Card::regular(RegularKind::Four, Color::Blue),
-            Card::regular(RegularKind::Five, Color::Red),
-            Card::regular(RegularKind::Six, Color::Blue),
-            Card::regular(RegularKind::Seven, Color::Blue),
+            &Card::regular(RegularKind::Three, Color::Blue),
+            &Card::regular(RegularKind::Four, Color::Blue),
+            &Card::regular(RegularKind::Five, Color::Red),
+            &Card::regular(RegularKind::Six, Color::Blue),
+            &Card::regular(RegularKind::Seven, Color::Blue),
         ];
         assert_eq!(find_combination(&hand), Some(Combination::Straight));
         // test special straight
         let hand = [
-            Card::special(SpecialKind::One),
-            Card::regular(RegularKind::Two, Color::Blue),
-            Card::special(SpecialKind::Phoenix),
-            Card::regular(RegularKind::Four, Color::Blue),
-            Card::regular(RegularKind::Five, Color::Blue),
-            Card::regular(RegularKind::Six, Color::Blue),
-            Card::regular(RegularKind::Seven, Color::Blue),
+            &Card::special(SpecialKind::One),
+            &Card::regular(RegularKind::Two, Color::Blue),
+            &Card::special(SpecialKind::Phoenix),
+            &Card::regular(RegularKind::Four, Color::Blue),
+            &Card::regular(RegularKind::Five, Color::Blue),
+            &Card::regular(RegularKind::Six, Color::Blue),
+            &Card::regular(RegularKind::Seven, Color::Blue),
         ];
         assert_eq!(find_combination(&hand), Some(Combination::Straight));
     }
@@ -435,11 +435,11 @@ mod tests {
     #[test]
     fn test_find_straightflush() {
         let hand = [
-            Card::regular(RegularKind::Three, Color::Blue),
-            Card::regular(RegularKind::Four, Color::Blue),
-            Card::regular(RegularKind::Five, Color::Blue),
-            Card::regular(RegularKind::Six, Color::Blue),
-            Card::regular(RegularKind::Seven, Color::Blue),
+            &Card::regular(RegularKind::Three, Color::Blue),
+            &Card::regular(RegularKind::Four, Color::Blue),
+            &Card::regular(RegularKind::Five, Color::Blue),
+            &Card::regular(RegularKind::Six, Color::Blue),
+            &Card::regular(RegularKind::Seven, Color::Blue),
         ];
         assert_eq!(find_combination(&hand), Some(Combination::StraightFlush));
     }
@@ -448,24 +448,24 @@ mod tests {
     fn test_find_stairs() {
         // check valid stair
         let hand = [
-            Card::regular(RegularKind::Nine, Color::Black),
-            Card::regular(RegularKind::Nine, Color::Green),
-            Card::special(SpecialKind::Phoenix),
-            Card::regular(RegularKind::Ten, Color::Black),
-            Card::regular(RegularKind::Jack, Color::Red),
-            Card::regular(RegularKind::Jack, Color::Black),
+            &Card::regular(RegularKind::Nine, Color::Black),
+            &Card::regular(RegularKind::Nine, Color::Green),
+            &Card::special(SpecialKind::Phoenix),
+            &Card::regular(RegularKind::Ten, Color::Black),
+            &Card::regular(RegularKind::Jack, Color::Red),
+            &Card::regular(RegularKind::Jack, Color::Black),
         ];
         assert_eq!(find_combination(&hand), Some(Combination::Stairs));
         // check invalid stair
         let hand = [
-            Card::regular(RegularKind::Nine, Color::Black),
-            Card::regular(RegularKind::Nine, Color::Green),
-            Card::special(SpecialKind::Phoenix),
-            Card::regular(RegularKind::Ten, Color::Black),
-            Card::regular(RegularKind::Jack, Color::Red),
-            Card::regular(RegularKind::Jack, Color::Black),
-            Card::regular(RegularKind::Queen, Color::Green),
-            Card::regular(RegularKind::King, Color::Green),
+            &Card::regular(RegularKind::Nine, Color::Black),
+            &Card::regular(RegularKind::Nine, Color::Green),
+            &Card::special(SpecialKind::Phoenix),
+            &Card::regular(RegularKind::Ten, Color::Black),
+            &Card::regular(RegularKind::Jack, Color::Red),
+            &Card::regular(RegularKind::Jack, Color::Black),
+            &Card::regular(RegularKind::Queen, Color::Green),
+            &Card::regular(RegularKind::King, Color::Green),
         ];
         assert_eq!(find_combination(&hand), None);
     }
@@ -473,26 +473,35 @@ mod tests {
     #[test]
     fn test_trick() {
         let mut trick = Trick::new();
-        trick.insert(0, Card::regular(RegularKind::Queen, Color::Red));
+        let king = Card::regular(RegularKind::King, Color::Black);
+        let queen = Card::regular(RegularKind::Queen, Color::Red);
+        trick.insert(0, &queen);
         assert_eq!(trick.combination, Some(Combination::Singlet));
-        trick.insert(1, Card::regular(RegularKind::King, Color::Black));
+        trick.insert(1, &king);
         assert_eq!(trick.combination, None);
-        let king = trick.remove(1);
-        assert_eq!(king.kind, Kind::Regular(RegularKind::King));
-        trick.insert(0, Card::special(SpecialKind::Phoenix));
+        let king2 = trick.remove(1);
+        assert_eq!(king, *king2);
+        let phoenix = Card::special(SpecialKind::Phoenix);
+        trick.insert(0, &phoenix);
         assert_eq!(trick.combination, Some(Combination::Doublet));
     }
 
     #[test]
     fn test_tops_bomb() {
         let mut bomb = Trick::new();
-        bomb.push(Card::regular(RegularKind::King, Color::Red));
-        bomb.push(Card::regular(RegularKind::King, Color::Blue));
-        bomb.push(Card::regular(RegularKind::King, Color::Green));
-        bomb.push(Card::regular(RegularKind::King, Color::Black));
+        let redking = Card::regular(RegularKind::King, Color::Red);
+        let blueking = Card::regular(RegularKind::King, Color::Blue);
+        let greenking = Card::regular(RegularKind::King, Color::Green);
+        let blackking = Card::regular(RegularKind::King, Color::Black);
+        bomb.push(&redking);
+        bomb.push(&blueking);
+        bomb.push(&greenking);
+        bomb.push(&blackking);
         let mut something = Trick::new();
-        something.push(Card::regular(RegularKind::Ten, Color::Blue));
-        something.push(Card::regular(RegularKind::Ten, Color::Green));
+        let blueten = Card::regular(RegularKind::Ten, Color::Blue);
+        let greenten = Card::regular(RegularKind::Ten, Color::Green);
+        something.push(&blueten);
+        something.push(&greenten);
         assert_eq!(bomb.tops(&something), Some(true));
         assert_eq!(something.tops(&bomb), None); // not compatible
     }
@@ -500,17 +509,22 @@ mod tests {
     #[test]
     fn test_tops_doublet() {
         let mut trick1 = Trick::new();
-        trick1.push(Card::regular(RegularKind::Five, Color::Black));
-        trick1.push(Card::regular(RegularKind::Five, Color::Blue));
+        let blackfive = Card::regular(RegularKind::Five, Color::Black);
+        let bluefive = Card::regular(RegularKind::Five, Color::Blue);
+        trick1.push(&blackfive);
+        trick1.push(&bluefive);
         let mut trick2 = Trick::new();
-        trick2.push(Card::regular(RegularKind::Ten, Color::Red));
-        trick2.push(Card::regular(RegularKind::Ten, Color::Blue));
+        let redten = Card::regular(RegularKind::Ten, Color::Red);
+        let blueten = Card::regular(RegularKind::Ten, Color::Blue);
+        trick2.push(&redten);
+        trick2.push(&blueten);
         assert_eq!(trick2.tops(&trick1), Some(true));
         assert_eq!(trick1.tops(&trick2), Some(false));
         // check with phoenix
         let mut trick3 = Trick::new();
-        trick3.push(Card::regular(RegularKind::Ten, Color::Red));
-        trick3.push(Card::special(SpecialKind::Phoenix));
+        let phoenix = Card::special(SpecialKind::Phoenix);
+        trick3.push(&redten);
+        trick3.push(&phoenix);
         assert_eq!(trick3.tops(&trick1), Some(true));
     }
 
@@ -518,19 +532,25 @@ mod tests {
     fn test_tops_fullhouse() {
         // construct a regular fullhouse
         let mut trick1 = Trick::new();
-        trick1.push(Card::regular(RegularKind::Six, Color::Blue));
-        trick1.push(Card::regular(RegularKind::Six, Color::Green));
-        trick1.push(Card::regular(RegularKind::Two, Color::Blue));
-        trick1.push(Card::regular(RegularKind::Two, Color::Black));
-        trick1.push(Card::regular(RegularKind::Two, Color::Green));
+        let bluesix = Card::regular(RegularKind::Six, Color::Blue);
+        let greensix = Card::regular(RegularKind::Six, Color::Green);
+        let bluetwo = Card::regular(RegularKind::Two, Color::Blue);
+        let blacktwo = Card::regular(RegularKind::Two, Color::Black);
+        let greentwo = Card::regular(RegularKind::Two, Color::Green);
+        trick1.push(&bluesix);
+        trick1.push(&greensix);
+        trick1.push(&bluetwo);
+        trick1.push(&blacktwo);
+        trick1.push(&greentwo);
         println!("trick1 rank {}", trick1.total_rank());
         // construct a bigger fullhouse with phoenix
         let mut trick2 = Trick::new();
-        trick2.push(Card::regular(RegularKind::Six, Color::Blue));
-        trick2.push(Card::regular(RegularKind::Six, Color::Green));
-        trick2.push(Card::special(SpecialKind::Phoenix));
-        trick2.push(Card::regular(RegularKind::Two, Color::Black));
-        trick2.push(Card::regular(RegularKind::Two, Color::Green));
+        let phoenix = Card::special(SpecialKind::Phoenix);
+        trick2.push(&bluesix);
+        trick2.push(&greensix);
+        trick2.push(&phoenix);
+        trick2.push(&blacktwo);
+        trick2.push(&greentwo);
         println!("trick2 rank {}", trick2.total_rank());
         assert_eq!(trick2.tops(&trick1), Some(true));
     }

@@ -41,7 +41,7 @@ pub enum Color {
     Red,
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Card {
     pub kind: Kind,
     pub color: Option<Color>,
@@ -137,17 +137,10 @@ impl Deck {
         self.cards.shuffle(&mut rng);
     }
 
-    pub fn deal(&mut self) -> [Vec<Card>; 4] {
+    pub fn deal(&self) -> [Vec<&Card>; 4] {
         let mut hands = [Vec::new(), Vec::new(), Vec::new(), Vec::new()];
-        for _i in 0..13 {
-            for hand in &mut hands {
-                // deal one card at a time
-                let card = self.cards.pop();
-                match card {
-                    Some(c) => hand.push(c),
-                    _ => {} // never happens on a full deck anyway
-                };
-            }
+        for i in 0..self.cards.len() {
+            hands[i % 4].push(&self.cards[i])
         }
         hands
     }
@@ -187,8 +180,8 @@ mod tests {
     fn test_deal() {
         let mut deck = Deck::new();
         let hands = deck.deal();
-        // check if all cards are used
-        assert_eq!(deck.cards.len(), 0);
+        // deck shouldn't change
+        assert_eq!(deck.cards.len(), 52);
         for hand in &hands {
             // check if each player has 13 cards
             assert_eq!(hand.len(), 13);

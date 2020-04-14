@@ -1,15 +1,15 @@
 use crate::combinations::Trick;
 use crate::deck::Card;
 
-pub struct Player {
-    hand: Vec<Card>,
-    stage: Trick, // here, cards are stored that the player is planning to play
+pub struct Player<'a> {
+    hand: Vec<&'a Card>,
+    stage: Trick<'a>, // here, cards are stored that the player is planning to play
     points: i16, // the points in the tricks that the player has during one round
     pub username: String,
 }
 
-impl Player {
-    pub fn new(username: String, hand: Vec<Card>) -> Player {
+impl<'a> Player<'a> {
+    pub fn new(username: String, hand: Vec<&'a Card>) -> Player<'a> {
         Player {
             hand: hand,
             stage: Trick::new(),
@@ -27,8 +27,6 @@ impl Player {
         // move card ith card in stage to j in hand
         self.hand.insert(j, self.stage.remove(i));
     }
-
-    // to do change borrow all cards from deck
 
     // pub fn play(mut self) -> Option<Trick> {
     //     // give up ownership of the trick, new stage is now empty
