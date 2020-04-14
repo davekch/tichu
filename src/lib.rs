@@ -3,31 +3,38 @@ mod deck;
 mod player;
 
 use combinations::Trick;
-use deck::{Card, Deck};
+use deck::Deck;
 use player::Player;
 
 pub struct TichuGame<'a> {
     players: [Player<'a>; 4],
+    deck: Deck,
     pub current_player: u8,
     pub current_trick: Vec<Trick<'a>>,
     pub scores: Vec<(i16, i16)>,
 }
 
-// impl TichuGame {
-//     pub fn new(usernames: [String; 4]) -> TichuGame {
-//         let mut deck = Deck::new();
-//         deck.shuffle();
-//         let hands = deck.deal();
-//         TichuGame {
-//             players: [
-//                 Player::new(usernames[0].to_string(), hands[0].to_vec()),
-//                 Player::new(usernames[1].to_string(), hands[1].to_vec()),
-//                 Player::new(usernames[2].to_string(), hands[2].to_vec()),
-//                 Player::new(usernames[3].to_string(), hands[3].to_vec()),
-//             ],
-//             current_player: 0,
-//             scores: vec![(0, 0)],
-//             current_trick: Vec::new(),
-//         }
-//     }
-// }
+impl<'a> TichuGame<'a> {
+    pub fn new(usernames: [String; 4]) -> TichuGame<'a> {
+        TichuGame {
+            players: [
+                Player::new(usernames[0].to_string()),
+                Player::new(usernames[1].to_string()),
+                Player::new(usernames[2].to_string()),
+                Player::new(usernames[3].to_string()),
+            ],
+            deck: Deck::new(),
+            current_player: 0,
+            scores: vec![(0, 0)],
+            current_trick: Vec::new(),
+        }
+    }
+
+    pub fn deal(&'a mut self) {
+        self.deck.shuffle();
+        let hands = self.deck.deal();
+        for i in 0..4 {
+            self.players[i].take_new_hand(hands[0].to_vec());
+        }
+    }
+}

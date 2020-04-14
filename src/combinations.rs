@@ -191,6 +191,18 @@ impl<'a> Trick<'a> {
         removed
     }
 
+    pub fn empty(&mut self) -> Trick<'a> {
+        // empty all cards from this trick and return an owned clone
+        let combination = self.combination;
+        let cards = self.cards.to_vec();
+        self.combination = None;
+        self.cards = Vec::new();
+        Trick {
+            combination: combination,
+            cards: cards,
+        }
+    }
+
     fn total_rank(&self) -> i16 {
         // compute the sum of all ranks
         // if there is no phoenix, this is easy enough
