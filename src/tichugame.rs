@@ -1,10 +1,5 @@
-mod combinations;
-mod deck;
-mod player;
-
-use combinations::Trick;
-use deck::Deck;
-use player::Player;
+use crate::combinations::Trick;
+use crate::player::Player;
 
 pub struct TichuGame<'a> {
     pub current_player: usize,

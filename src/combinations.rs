@@ -152,7 +152,6 @@ fn check_stairs(cards: &[&Card]) -> bool {
     for card in cards.iter().step_by(2) {
         straight1.push(*card);
     }
-    println!("");
     for card in cards[1..].iter().step_by(2) {
         straight2.push(*card);
     }
