@@ -7,34 +7,43 @@ use deck::Deck;
 use player::Player;
 
 pub struct TichuGame<'a> {
-    players: [Player<'a>; 4],
-    deck: Deck,
-    pub current_player: u8,
-    pub current_trick: Vec<Trick<'a>>,
+    pub current_player: usize,
+    player_points: [i16; 4],
+    pub tricks: Vec<Trick<'a>>,  // tricks in the middle of the table
+    pub passes: u8, // number of times that players have passed (at 3, last_trick wins the round)
     pub scores: Vec<(i16, i16)>,
 }
 
 impl<'a> TichuGame<'a> {
-    pub fn new(usernames: [String; 4]) -> TichuGame<'a> {
+    pub fn new() -> TichuGame<'a> {
         TichuGame {
-            players: [
-                Player::new(usernames[0].to_string()),
-                Player::new(usernames[1].to_string()),
-                Player::new(usernames[2].to_string()),
-                Player::new(usernames[3].to_string()),
-            ],
-            deck: Deck::new(),
             current_player: 0,
+            player_points: [0, 0, 0, 0],
+            passes: 0,
             scores: vec![(0, 0)],
-            current_trick: Vec::new(),
+            tricks: Vec::new(),
         }
     }
 
-    pub fn deal(&'a mut self) {
-        self.deck.shuffle();
-        let hands = self.deck.deal();
-        for i in 0..4 {
-            self.players[i].take_new_hand(hands[0].to_vec());
+    pub fn pass(&mut self) {
+        // call this if a player doesn't want to play
+        self.passes += 1;
+        self.current_player = (self.current_player + 1) % 4;
+        if self.passes == 3 {
+            // if 3 players pass, the current player wins this round
+            self.passes = 0;
+            // collect all the points
+            for trick in &self.tricks {
+                self.player_points[self.current_player] += trick.points();
+            }
+            self.tricks = Vec::new();
         }
+    }
+
+    pub fn play(&mut self, trick: Trick<'a>) {
+        // players must make sure themselves that trick is valid
+        self.tricks.push(trick);
+        self.current_player = (self.current_player + 1) % 4;
+        self.passes = 0;
     }
 }

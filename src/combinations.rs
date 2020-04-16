@@ -203,6 +203,14 @@ impl<'a> Trick<'a> {
         }
     }
 
+    pub fn points(&self) -> i16 {
+        self.cards.iter().fold(0, |acc, c| acc + c.value)
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.combination != None
+    }
+
     fn total_rank(&self) -> i16 {
         // compute the sum of all ranks
         // if there is no phoenix, this is easy enough
