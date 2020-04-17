@@ -1,13 +1,12 @@
-use crate::tichugame::TichuGame;
-use crate::player::Player;
 use crate::deck::Deck;
-use std::net::{TcpStream, TcpListener};
+use crate::player::Player;
+use crate::tichugame::TichuGame;
 use bufstream::BufStream;
+use log::{debug, error, info};
 use std::io::BufRead;
-use std::sync::{Mutex, Arc};
+use std::net::{TcpListener, TcpStream};
+use std::sync::{Arc, Mutex};
 use std::thread;
-use log::{debug, info, error};
-
 
 pub struct TichuServer {
     // Mutex<T> can be mutably accessed via a lock, Arc<T> allows multiple owners
@@ -23,7 +22,11 @@ impl TichuServer {
         }
     }
 
-    pub fn handle_connection(stream: TcpStream, player: Player<'static>, game_mutex: Arc<Mutex<TichuGame<'static>>>) {
+    pub fn handle_connection(
+        stream: TcpStream,
+        player: Player<'static>,
+        game_mutex: Arc<Mutex<TichuGame<'static>>>,
+    ) {
         // clone the stream because BufStream::new() and lines() take ownership
         let stream = BufStream::new(stream);
         for line in stream.lines() {
@@ -49,12 +52,14 @@ impl TichuServer {
         let mut i: usize = 0;
         for stream in listener.incoming() {
             match stream {
-                Ok(stream) => if i < 4 {
-                    self.add_connection(i, stream);
-                    i += 1;
-                } else {
-                    info!("connections complete, ready to start game");
-                    break;
+                Ok(stream) => {
+                    if i < 4 {
+                        self.add_connection(i, stream);
+                        i += 1;
+                    } else {
+                        info!("connections complete, ready to start game");
+                        break;
+                    }
                 }
                 Err(e) => error!("{}", e),
             }
@@ -72,10 +77,12 @@ impl TichuServer {
         // spawn a new thread where the new connection is checked for incoming messages
         info!("new connection with {} via {}", username.trim(), addr);
         let gameclone = Arc::clone(&self.game);
-        thread::spawn(move || TichuServer::handle_connection(
-            stream,
-            Player::new(username.trim().to_string()),
-            gameclone,
-        ));
+        thread::spawn(move || {
+            TichuServer::handle_connection(
+                stream,
+                Player::new(username.trim().to_string()),
+                gameclone,
+            )
+        });
     }
 }

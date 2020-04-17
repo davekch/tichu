@@ -4,7 +4,7 @@ use crate::player::Player;
 pub struct TichuGame<'a> {
     pub current_player: usize,
     player_points: [i16; 4],
-    pub tricks: Vec<Trick<'a>>,  // tricks in the middle of the table
+    pub tricks: Vec<Trick<'a>>, // tricks in the middle of the table
     pub passes: u8, // number of times that players have passed (at 3, last_trick wins the round)
     pub scores: Vec<(i16, i16)>,
 }

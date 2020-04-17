@@ -4,8 +4,8 @@ mod player;
 mod tichugame;
 mod tichuserver;
 
+use simplelog::{Config, LevelFilter, TermLogger, TerminalMode};
 use tichuserver::TichuServer;
-use simplelog::{TermLogger, LevelFilter, Config, TerminalMode};
 
 fn main() {
     // set up logger

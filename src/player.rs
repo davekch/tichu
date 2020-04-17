@@ -33,11 +33,13 @@ impl<'a> Player<'a> {
     pub fn play(&mut self, trick: Option<&Trick>) -> Result<Trick, PlayerError> {
         // if the player is first, trick is None, else the own stage must top the trick
         match trick {
-            None => if self.stage.is_valid() {
-                Ok(self.stage.empty()) // give up ownership of the trick, new stage is now empty
-            } else {
-                Err(PlayerError::NotValid)
-            },
+            None => {
+                if self.stage.is_valid() {
+                    Ok(self.stage.empty()) // give up ownership of the trick, new stage is now empty
+                } else {
+                    Err(PlayerError::NotValid)
+                }
+            }
             Some(trick) => {
                 match self.stage.tops(trick) {
                     Some(true) => Ok(self.stage.empty()), // give up ownership of the trick, new stage is now empty
