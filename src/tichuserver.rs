@@ -4,39 +4,33 @@ use crate::deck::Deck;
 use std::net::{TcpStream, TcpListener};
 use bufstream::BufStream;
 use std::io::BufRead;
+use std::sync::{Mutex, Arc};
 use std::thread;
 use log::{debug, info, error};
 
-pub struct Connection<'a> {
-    player: Player<'a>,
-    stream: TcpStream,
-}
 
-impl<'a> Connection<'a> {
-    pub fn handle_connection(&mut self) {
-        // clone the stream because BufStream::new() and lines() take ownership
-        let stream = BufStream::new(self.stream.try_clone().unwrap());
-        for line in stream.lines() {
-            match line {
-                Ok(msg) => info!("got message for {}: {}", self.player.username, msg),
-                Err(e) => error!("Error while reading message for {}: {}", self.player.username, e),
-            }
-        }
-    }
-}
-
-pub struct TichuServer<'a> {
-    connections: [Option<String>; 4], // array of addresses to players
-    game: TichuGame<'a>,
+pub struct TichuServer {
+    // Mutex<T> can be mutably accessed via a lock, Arc<T> allows multiple owners
+    game: Arc<Mutex<TichuGame<'static>>>,
     deck: Deck,
 }
 
-impl<'a> TichuServer<'a> {
-    pub fn new() -> TichuServer<'a> {
+impl TichuServer {
+    pub fn new() -> TichuServer {
         TichuServer {
-            connections: [None, None, None, None],
-            game: TichuGame::new(),
+            game: Arc::new(Mutex::new(TichuGame::new())),
             deck: Deck::new(),
+        }
+    }
+
+    pub fn handle_connection(stream: TcpStream, player: Player<'static>, game_mutex: Arc<Mutex<TichuGame<'static>>>) {
+        // clone the stream because BufStream::new() and lines() take ownership
+        let stream = BufStream::new(stream);
+        for line in stream.lines() {
+            match line {
+                Ok(msg) => info!("got message for {}: {}", player.username, msg),
+                Err(e) => error!("Error while reading message for {}: {}", player.username, e),
+            }
         }
     }
 
@@ -75,13 +69,13 @@ impl<'a> TichuServer<'a> {
         let mut bufstream = BufStream::new(stream.try_clone().unwrap());
         let mut username = String::new();
         bufstream.read_line(&mut username).unwrap();
-        let mut new_connection = Connection{
-            player: Player::new(username.trim().to_string()),
-            stream: stream,
-        };
-        self.connections[i] = Some(addr.to_string());
         // spawn a new thread where the new connection is checked for incoming messages
-        thread::spawn(move || new_connection.handle_connection());
         info!("new connection with {} via {}", username.trim(), addr);
+        let gameclone = Arc::clone(&self.game);
+        thread::spawn(move || TichuServer::handle_connection(
+            stream,
+            Player::new(username.trim().to_string()),
+            gameclone,
+        ));
     }
 }
