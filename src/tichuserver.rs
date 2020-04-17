@@ -9,29 +9,17 @@ use log::{debug, info, error};
 
 pub struct Connection<'a> {
     player: Player<'a>,
-    stream: BufStream<TcpStream>,
+    stream: TcpStream,
 }
 
 impl<'a> Connection<'a> {
     pub fn handle_connection(&mut self) {
-        loop {
-            // TODO reduce cpu usage
-            let msg = self.read_message();
-        }
-    }
-
-    pub fn read_message(&mut self) -> Option<String> {
-        let mut read = String::new();
-        match self.stream.read_line(&mut read) {
-            Ok(size) => if size > 0 {
-                info!("got message for {}: {}", self.player.username, read.trim());
-                return Some(read.trim().to_string());
-            } else {
-                return None;
-            }
-            Err(e) => {
-                error!("Error while reading message for {}: {}", self.player.username, e);
-                return None;
+        // clone the stream because BufStream::new() and lines() take ownership
+        let stream = BufStream::new(self.stream.try_clone().unwrap());
+        for line in stream.lines() {
+            match line {
+                Ok(msg) => info!("got message for {}: {}", self.player.username, msg),
+                Err(e) => error!("Error while reading message for {}: {}", self.player.username, e),
             }
         }
     }
@@ -84,9 +72,9 @@ impl<'a> TichuServer<'a> {
     fn add_connection(&mut self, i: usize, stream: TcpStream) {
         let addr = stream.peer_addr().unwrap();
         // read username from stream
-        let mut stream = BufStream::new(stream);
+        let mut bufstream = BufStream::new(stream.try_clone().unwrap());
         let mut username = String::new();
-        stream.read_line(&mut username).unwrap();
+        bufstream.read_line(&mut username).unwrap();
         let mut new_connection = Connection{
             player: Player::new(username.trim().to_string()),
             stream: stream,

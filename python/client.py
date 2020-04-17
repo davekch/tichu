@@ -1,4 +1,5 @@
 import socket
+import time
 
 
 class Client:
@@ -18,3 +19,5 @@ class Client:
 if __name__ == "__main__":
     client = Client()
     client.connect("testuser")
+    time.sleep(1)
+    client.send("blah")
