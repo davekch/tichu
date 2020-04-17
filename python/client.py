@@ -2,7 +2,7 @@ import socket
 
 
 class Client:
-    def __init__(self, ip="192.168.178.21", port=1001):
+    def __init__(self, ip="127.0.0.1", port=1001):
         self.remote_addr = (ip, port)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 

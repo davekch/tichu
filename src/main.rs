@@ -11,5 +11,5 @@ fn main() {
     // set up logger
     let _ = TermLogger::init(LevelFilter::Info, Config::default(), TerminalMode::Mixed);
     let mut server = TichuServer::new();
-    server.main("192.168.178.21", "1001");
+    server.main("127.0.0.1", "1001");
 }
