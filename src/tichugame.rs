@@ -1,7 +1,11 @@
 use crate::combinations::Trick;
+use crate::deck::{Card, Deck};
 use crate::player::Player;
 
 pub struct TichuGame<'a> {
+    deck: Deck,
+     // holds the hands that are meant for players after dealing, None as soon as a player takes theirs
+    hands: [Option<Vec<&'a Card>>; 4],
     pub current_player: usize,
     player_points: [i16; 4],
     pub tricks: Vec<Trick<'a>>, // tricks in the middle of the table
@@ -12,12 +16,26 @@ pub struct TichuGame<'a> {
 impl<'a> TichuGame<'a> {
     pub fn new() -> TichuGame<'a> {
         TichuGame {
+            deck: Deck::new(),
+            hands: [None, None, None, None],
             current_player: 0,
             player_points: [0, 0, 0, 0],
             passes: 0,
             scores: vec![(0, 0)],
             tricks: Vec::new(),
         }
+    }
+
+    pub fn shuffle_and_deal(&'a mut self) {
+        self.deck.shuffle();
+        let hands = self.deck.deal();
+        for i in 0..4 {
+            self.hands[i] = Some(hands[i].to_vec());
+        }
+    }
+
+    pub fn take_hand(&'a mut self, i: usize) -> Option<Vec<&'a Card>> {
+        self.hands[i].take()
     }
 
     pub fn pass(&mut self) {

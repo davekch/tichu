@@ -1,4 +1,3 @@
-use crate::deck::Deck;
 use crate::player::Player;
 use crate::tichugame::TichuGame;
 use bufstream::BufStream;
@@ -11,7 +10,6 @@ use std::thread;
 pub struct TichuServer {
     // Mutex<T> can be mutably accessed via a lock, Arc<T> allows multiple owners
     game: Arc<Mutex<TichuGame<'static>>>,
-    deck: Deck,
     join_handles: [Option<thread::JoinHandle<()>>; 4],
 }
 
@@ -19,7 +17,6 @@ impl TichuServer {
     pub fn new() -> TichuServer {
         TichuServer {
             game: Arc::new(Mutex::new(TichuGame::new())),
-            deck: Deck::new(),
             join_handles: [None, None, None, None],
         }
     }
