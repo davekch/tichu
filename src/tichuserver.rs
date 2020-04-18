@@ -1,8 +1,8 @@
 use crate::player::Player;
 use crate::tichugame::TichuGame;
 use bufstream::BufStream;
-use log::{debug, error, info};
-use std::io::BufRead;
+use log::{debug, error, info, warn};
+use std::io::{BufRead, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -21,19 +21,70 @@ impl TichuServer {
         }
     }
 
-    pub fn handle_connection(
-        stream: TcpStream,
-        player: Player<'static>,
-        game_mutex: Arc<Mutex<TichuGame<'static>>>,
+    fn handle_connection(
+        player_index: usize,
+        mut writestream: TcpStream,
+        mut player: Player,
+        game_mutex: Arc<Mutex<TichuGame>>,
     ) {
         // clone the stream because BufStream::new() and lines() take ownership
-        let stream = BufStream::new(stream);
-        for line in stream.lines() {
-            match line {
-                Ok(msg) => info!("got message for {}: {}", player.username, msg),
-                Err(e) => error!("Error while reading message for {}: {}", player.username, e),
+        // use readstream to iterate over incoming lines, this has the advantage
+        // that it blocks the thread until there is a new line as opposed to
+        // loop { stream.read() }. writestream is used to send messages back
+        let mut readstream = BufStream::new(writestream.try_clone().unwrap());
+        for line in readstream.lines() {
+            if let Ok(msg) = line {
+                debug!("got message for {}: {}", player.username, msg);
+                // check for all the possible messages
+                if msg == "takecards" {
+                    // acquire the lock to game_mutex
+                    let mut game = game_mutex.lock().unwrap();
+                    match game.take_hand(player_index) {
+                        // TODO send message back to client
+                        Some(h) => {
+                            player.take_new_hand(h);
+                            TichuServer::answer_ok(&mut writestream);
+                        }
+                        _ => {
+                            error!("a client tried to take a hand that does not exist");
+                            TichuServer::answer_err(
+                                &mut writestream,
+                                "there is no hand for you at the moment",
+                            );
+                        }
+                    };
+                // lock gets released at end of this scope
+                } else if msg == "deal" {
+                    let mut game = game_mutex.lock().unwrap();
+                    game.shuffle_and_deal();
+                    TichuServer::answer_ok(&mut writestream);
+                } else {
+                    warn!("received invalid message: {}", msg);
+                    TichuServer::answer_err(&mut writestream, "invalid command");
+                }
+            } else if let Err(e) = line {
+                error!("Error while reading message for {}: {}", player.username, e);
             }
         }
+    }
+
+    fn answer_ok(stream: &mut TcpStream) {
+        TichuServer::answer(stream, "ok:");
+    }
+
+    fn answer_msg(stream: &mut TcpStream, msg: &str) {
+        TichuServer::answer(stream, &format!("ok:{}", msg));
+    }
+
+    fn answer_err(stream: &mut TcpStream, msg: &str) {
+        TichuServer::answer(stream, &format!("err:{}", msg));
+    }
+
+    fn answer(stream: &mut TcpStream, msg: &str) {
+        match stream.write(format!("{}\n", msg).as_bytes()) {
+            Ok(_) => {}
+            Err(e) => error!("could not send message '{}': {}", msg, e),
+        };
     }
 
     pub fn main(&mut self, ip: &str, port: &str) {
@@ -79,6 +130,7 @@ impl TichuServer {
         let gameclone = Arc::clone(&self.game);
         let handle = thread::spawn(move || {
             TichuServer::handle_connection(
+                i,
                 stream,
                 Player::new(username.trim().to_string()),
                 gameclone,
@@ -90,10 +142,10 @@ impl TichuServer {
     fn join_all(&mut self) {
         for handle in &mut self.join_handles {
             match handle.take().unwrap().join() {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(_) => error!("Could not join thread"),
             }
-        };
+        }
         info!("all treads joined");
     }
 }

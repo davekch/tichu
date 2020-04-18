@@ -4,7 +4,7 @@ use crate::player::Player;
 
 pub struct TichuGame {
     deck: Deck,
-     // holds the hands that are meant for players after dealing, None as soon as a player takes theirs
+    // holds the hands that are meant for players after dealing, None as soon as a player takes theirs
     hands: [Option<Vec<Card>>; 4],
     pub current_player: usize,
     player_points: [i16; 4],
