@@ -1,14 +1,14 @@
 use crate::combinations::Trick;
 use crate::deck::Card;
 
-pub struct Player<'a> {
-    hand: Vec<&'a Card>,
-    stage: Trick<'a>, // here, cards are stored that the player is planning to play
+pub struct Player {
+    hand: Vec<Card>,
+    stage: Trick, // here, cards are stored that the player is planning to play
     pub username: String,
 }
 
-impl<'a> Player<'a> {
-    pub fn new(username: String) -> Player<'a> {
+impl Player {
+    pub fn new(username: String) -> Player {
         Player {
             hand: Vec::new(),
             stage: Trick::new(),
@@ -16,7 +16,7 @@ impl<'a> Player<'a> {
         }
     }
 
-    pub fn take_new_hand(&mut self, hand: Vec<&'a Card>) {
+    pub fn take_new_hand(&mut self, hand: Vec<Card>) {
         self.hand = hand;
     }
 

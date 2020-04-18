@@ -41,7 +41,7 @@ pub enum Color {
     Red,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Card {
     pub kind: Kind,
     pub color: Option<Color>,
@@ -137,10 +137,10 @@ impl Deck {
         self.cards.shuffle(&mut rng);
     }
 
-    pub fn deal<'a>(&'a self) -> [Vec<&'a Card>; 4] {
+    pub fn deal(&self) -> [Vec<Card>; 4] {
         let mut hands = [Vec::new(), Vec::new(), Vec::new(), Vec::new()];
         for i in 0..self.cards.len() {
-            hands[i % 4].push(&self.cards[i])
+            hands[i % 4].push(self.cards[i])
         }
         hands
     }

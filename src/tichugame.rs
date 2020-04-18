@@ -2,19 +2,19 @@ use crate::combinations::Trick;
 use crate::deck::{Card, Deck};
 use crate::player::Player;
 
-pub struct TichuGame<'a> {
+pub struct TichuGame {
     deck: Deck,
      // holds the hands that are meant for players after dealing, None as soon as a player takes theirs
-    hands: [Option<Vec<&'a Card>>; 4],
+    hands: [Option<Vec<Card>>; 4],
     pub current_player: usize,
     player_points: [i16; 4],
-    pub tricks: Vec<Trick<'a>>, // tricks in the middle of the table
+    pub tricks: Vec<Trick>, // tricks in the middle of the table
     pub passes: u8, // number of times that players have passed (at 3, last_trick wins the round)
     pub scores: Vec<(i16, i16)>,
 }
 
-impl<'a> TichuGame<'a> {
-    pub fn new() -> TichuGame<'a> {
+impl TichuGame {
+    pub fn new() -> TichuGame {
         TichuGame {
             deck: Deck::new(),
             hands: [None, None, None, None],
@@ -26,7 +26,7 @@ impl<'a> TichuGame<'a> {
         }
     }
 
-    pub fn shuffle_and_deal(&'a mut self) {
+    pub fn shuffle_and_deal(&mut self) {
         self.deck.shuffle();
         let hands = self.deck.deal();
         for i in 0..4 {
@@ -34,7 +34,7 @@ impl<'a> TichuGame<'a> {
         }
     }
 
-    pub fn take_hand(&'a mut self, i: usize) -> Option<Vec<&'a Card>> {
+    pub fn take_hand(&mut self, i: usize) -> Option<Vec<Card>> {
         self.hands[i].take()
     }
 
@@ -53,7 +53,7 @@ impl<'a> TichuGame<'a> {
         }
     }
 
-    pub fn play(&mut self, trick: Trick<'a>) {
+    pub fn play(&mut self, trick: Trick) {
         // players must make sure themselves that trick is valid
         self.tricks.push(trick);
         self.current_player = (self.current_player + 1) % 4;
