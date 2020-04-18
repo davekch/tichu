@@ -57,8 +57,12 @@ impl TichuServer {
                 // lock gets released at end of this scope
                 } else if msg == "deal" {
                     let mut game = game_mutex.lock().unwrap();
-                    game.shuffle_and_deal();
-                    TichuServer::answer_ok(&mut writestream);
+                    if game.current_player == player_index {
+                        game.shuffle_and_deal();
+                        TichuServer::answer_ok(&mut writestream);
+                    } else {
+                        TichuServer::answer_err(&mut writestream, "it's not your turn");
+                    }
                 } else {
                     warn!("received invalid message: {}", msg);
                     TichuServer::answer_err(&mut writestream, "invalid command");
@@ -104,10 +108,9 @@ impl TichuServer {
         for stream in listener.incoming() {
             match stream {
                 Ok(stream) => {
-                    if i < 4 {
-                        self.add_connection(i, stream);
-                        i += 1;
-                    } else {
+                    self.add_connection(i, stream);
+                    i += 1;
+                    if i == 4 {
                         info!("connections complete, ready to start game");
                         break;
                     }
@@ -120,14 +123,16 @@ impl TichuServer {
         drop(listener);
     }
 
-    fn add_connection(&mut self, i: usize, stream: TcpStream) {
+    fn add_connection(&mut self, i: usize, mut stream: TcpStream) {
         let addr = stream.peer_addr().unwrap();
         // read username from stream
         let mut bufstream = BufStream::new(stream.try_clone().unwrap());
         let mut username = String::new();
         bufstream.read_line(&mut username).unwrap();
-        // spawn a new thread where the new connection is checked for incoming messages
+        // if everything went well, say hello to the client
+        TichuServer::answer_ok(&mut stream);
         info!("new connection with {} via {}", username.trim(), addr);
+        // spawn a new thread where the new connection is checked for incoming messages
         let gameclone = Arc::clone(&self.game);
         let handle = thread::spawn(move || {
             TichuServer::handle_connection(
