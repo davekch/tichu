@@ -1,3 +1,4 @@
+use crate::deck::Card;
 use crate::player::Player;
 use crate::tichugame::TichuGame;
 use bufstream::BufStream;
@@ -42,8 +43,8 @@ impl TichuServer {
                     match game.take_hand(player_index) {
                         // TODO send message back to client
                         Some(h) => {
+                            TichuServer::answer_msg(&mut writestream, &format_hand(&h));
                             player.take_new_hand(h);
-                            TichuServer::answer_ok(&mut writestream);
                         }
                         _ => {
                             error!("a client tried to take a hand that does not exist");
@@ -148,4 +149,12 @@ impl TichuServer {
         }
         info!("all treads joined");
     }
+}
+
+fn format_hand(hand: &Vec<Card>) -> String {
+    let mut str = String::new();
+    for card in hand {
+        str += &format!("{},", card.to_string());
+    }
+    str.to_string()
 }

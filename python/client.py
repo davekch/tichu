@@ -22,7 +22,7 @@ class Client:
         self._send(message)
         answer = self.socket.recv(BUFSIZE)
         # answers from the server are formatted like "status:message\n"
-        status, message = answer.decode("UTF-8").strip().split(":")
+        status, message = answer.decode("UTF-8").strip().split(":", 1)
         return (status, message)
 
 

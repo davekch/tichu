@@ -1,9 +1,11 @@
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use std::fmt;
+use std::string::ToString;
 use strum::IntoEnumIterator; // iterate over static enum
-use strum_macros::EnumIter;
+use strum_macros::{Display, EnumIter};
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, EnumIter)]
+#[derive(Debug, Display, PartialEq, Eq, Copy, Clone, Hash, EnumIter)]
 pub enum RegularKind {
     Two,
     Three,
@@ -19,7 +21,7 @@ pub enum RegularKind {
     King,
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, EnumIter)]
+#[derive(Debug, Display, PartialEq, Eq, Copy, Clone, Hash, EnumIter)]
 pub enum SpecialKind {
     Dragon,
     Phoenix,
@@ -33,7 +35,7 @@ pub enum Kind {
     Regular(RegularKind),
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Debug, Display, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum Color {
     Black,
     Blue,
@@ -47,6 +49,15 @@ pub struct Card {
     pub color: Option<Color>,
     pub rank: i16,
     pub value: i16,
+}
+
+impl fmt::Display for Card {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.kind {
+            Kind::Regular(k) => write!(f, "{} {}", self.color.unwrap().to_string(), k.to_string()),
+            Kind::Special(k) => write!(f, "{}", k.to_string()),
+        }
+    }
 }
 
 impl Card {
