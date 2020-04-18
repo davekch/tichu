@@ -12,6 +12,7 @@ pub struct TichuServer {
     // Mutex<T> can be mutably accessed via a lock, Arc<T> allows multiple owners
     game: Arc<Mutex<TichuGame<'static>>>,
     deck: Deck,
+    join_handles: [Option<thread::JoinHandle<()>>; 4],
 }
 
 impl TichuServer {
@@ -19,6 +20,7 @@ impl TichuServer {
         TichuServer {
             game: Arc::new(Mutex::new(TichuGame::new())),
             deck: Deck::new(),
+            join_handles: [None, None, None, None],
         }
     }
 
@@ -64,8 +66,9 @@ impl TichuServer {
                 Err(e) => error!("{}", e),
             }
         }
-        // info!("quitting ...");
-        // drop(listener);
+        self.join_all();
+        info!("quitting ...");
+        drop(listener);
     }
 
     fn add_connection(&mut self, i: usize, stream: TcpStream) {
@@ -77,12 +80,23 @@ impl TichuServer {
         // spawn a new thread where the new connection is checked for incoming messages
         info!("new connection with {} via {}", username.trim(), addr);
         let gameclone = Arc::clone(&self.game);
-        thread::spawn(move || {
+        let handle = thread::spawn(move || {
             TichuServer::handle_connection(
                 stream,
                 Player::new(username.trim().to_string()),
                 gameclone,
             )
         });
+        self.join_handles[i] = Some(handle);
+    }
+
+    fn join_all(&mut self) {
+        for handle in &mut self.join_handles {
+            match handle.take().unwrap().join() {
+                Ok(_) => {},
+                Err(_) => error!("Could not join thread"),
+            }
+        };
+        info!("all treads joined");
     }
 }
