@@ -57,12 +57,21 @@ impl TichuServer {
                 // lock gets released at end of this scope
                 } else if msg == "deal" {
                     let mut game = game_mutex.lock().unwrap();
+                    // TODO: only allow this if there's a new round
                     if game.current_player == player_index {
                         game.shuffle_and_deal();
                         TichuServer::answer_ok(&mut writestream);
                     } else {
                         TichuServer::answer_err(&mut writestream, "it's not your turn");
                     }
+                } else if msg.starts_with("stage") {
+                    let (i, j) = parse_command_parameters(&msg);
+                    player.stage(i, j);
+                    TichuServer::answer_ok(&mut writestream);
+                } else if msg.starts_with("unstage") {
+                    let (i, j) = parse_command_parameters(&msg);
+                    player.unstage(i, j);
+                    TichuServer::answer_ok(&mut writestream);
                 } else {
                     warn!("received invalid message: {}", msg);
                     TichuServer::answer_err(&mut writestream, "invalid command");
@@ -162,4 +171,14 @@ fn format_hand(hand: &Vec<Card>) -> String {
         str += &format!("{},", card.to_string());
     }
     str.to_string()
+}
+
+fn parse_command_parameters(command: &str) -> (usize, usize) {
+    // parse something like "command 1 2" into (1, 2)
+    let mut parts = command.split_whitespace();
+    // ignore first part
+    parts.next();
+    let num1: usize = parts.next().unwrap().parse().unwrap();
+    let num2: usize = parts.next().unwrap().parse().unwrap();
+    (num1, num2)
 }

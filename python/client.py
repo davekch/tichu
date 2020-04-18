@@ -13,7 +13,8 @@ class Client:
     def __init__(self, ip="127.0.0.1", port=1001):
         self.remote_addr = (ip, port)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.cards = []
+        self._hand = [] # the player's cards
+        self._stage = [] # cards that the player is about to play
 
     def connect(self, username):
         self.username = username
@@ -36,15 +37,38 @@ class Client:
         return (status, message)
 
     def deal(self):
+        """tell the server to mix up the deck and deal new cards
+        raises TichuError if it's not the player's turn or if the round is still ongoing
+        """
         status, message = self._send_and_recv("deal")
         if status == "err":
             raise TichuError(message)
 
     def request_cards(self):
+        """after a deal, request the new cards from the server
+        """
         status, message = self._send_and_recv("takecards")
         if status == "ok":
             # the message contains the cards seperated by comma (last one is empty)
-            self.cards = message.lower().split(",")[:-1]
+            self._hand = message.lower().split(",")[:-1]
+        elif status == "err":
+            raise TichuError(message)
+
+    def stage(self, i, j):
+        """move card i from hand to j in stage (locally and remotely)
+        """
+        status, message = self._send_and_recv("stage {} {}".format(i, j))
+        if status == "ok":
+            self._stage.insert(j, self._hand.pop(i))
+        elif status == "err":
+            raise TichuError(message)
+
+    def unstage(self, i, j):
+        """reverse action to stage
+        """
+        status, message = self._send_and_recv("unstage {} {}".format(i, j))
+        if status == "ok":
+            self._hand.insert(j, self._stage.pop(i))
         elif status == "err":
             raise TichuError(message)
 
@@ -55,4 +79,4 @@ if __name__ == "__main__":
     client.connect(username)
     client.deal()
     client.request_cards()
-    print(client.cards)
+    print(client._hand)
