@@ -8,25 +8,22 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-pub struct TichuServer {
-    // Mutex<T> can be mutably accessed via a lock, Arc<T> allows multiple owners
-    game: Arc<Mutex<TichuGame>>,
-    join_handles: [Option<thread::JoinHandle<()>>; 4],
+struct TichuConnection {
+    game: Mutex<TichuGame>,
 }
 
-impl TichuServer {
-    pub fn new() -> TichuServer {
-        TichuServer {
-            game: Arc::new(Mutex::new(TichuGame::new())),
-            join_handles: [None, None, None, None],
+impl TichuConnection {
+    pub fn new() -> TichuConnection {
+        TichuConnection {
+            game: Mutex::new(TichuGame::new()),
         }
     }
 
-    fn handle_connection(
+    pub fn handle_connection(
+        &self,
         player_index: usize,
         mut writestream: TcpStream,
         mut player: Player,
-        game_mutex: Arc<Mutex<TichuGame>>,
     ) {
         // clone the stream because BufStream::new() and lines() take ownership
         // use readstream to iterate over incoming lines, this has the advantage
@@ -38,17 +35,17 @@ impl TichuServer {
                 debug!("got message for {}: {}", player.username, msg);
                 // check for all the possible messages
                 if msg == "takecards" {
-                    // acquire the lock to game_mutex
-                    let mut game = game_mutex.lock().unwrap();
+                    // acquire the lock to self.game
+                    let mut game = self.game.lock().unwrap();
                     match game.take_hand(player_index) {
                         // TODO send message back to client
                         Some(h) => {
-                            TichuServer::answer_msg(&mut writestream, &format_hand(&h));
+                            TichuConnection::answer_msg(&mut writestream, &format_hand(&h));
                             player.take_new_hand(h);
                         }
                         _ => {
                             error!("a client tried to take a hand that does not exist");
-                            TichuServer::answer_err(
+                            TichuConnection::answer_err(
                                 &mut writestream,
                                 "there is no hand for you at the moment",
                             );
@@ -56,25 +53,25 @@ impl TichuServer {
                     };
                 // lock gets released at end of this scope
                 } else if msg == "deal" {
-                    let mut game = game_mutex.lock().unwrap();
+                    let mut game = self.game.lock().unwrap();
                     // TODO: only allow this if there's a new round
                     if game.current_player == player_index {
                         game.shuffle_and_deal();
-                        TichuServer::answer_ok(&mut writestream);
+                        TichuConnection::answer_ok(&mut writestream);
                     } else {
-                        TichuServer::answer_err(&mut writestream, "it's not your turn");
+                        TichuConnection::answer_err(&mut writestream, "it's not your turn");
                     }
                 } else if msg.starts_with("stage") {
                     let (i, j) = parse_command_parameters(&msg);
                     player.stage(i, j);
-                    TichuServer::answer_ok(&mut writestream);
+                    TichuConnection::answer_ok(&mut writestream);
                 } else if msg.starts_with("unstage") {
                     let (i, j) = parse_command_parameters(&msg);
                     player.unstage(i, j);
-                    TichuServer::answer_ok(&mut writestream);
+                    TichuConnection::answer_ok(&mut writestream);
                 } else {
                     warn!("received invalid message: {}", msg);
-                    TichuServer::answer_err(&mut writestream, "invalid command");
+                    TichuConnection::answer_err(&mut writestream, "invalid command");
                 }
             } else if let Err(e) = line {
                 error!("Error while reading message for {}: {}", player.username, e);
@@ -83,15 +80,15 @@ impl TichuServer {
     }
 
     fn answer_ok(stream: &mut TcpStream) {
-        TichuServer::answer(stream, "ok:");
+        TichuConnection::answer(stream, "ok:");
     }
 
     fn answer_msg(stream: &mut TcpStream, msg: &str) {
-        TichuServer::answer(stream, &format!("ok:{}", msg));
+        TichuConnection::answer(stream, &format!("ok:{}", msg));
     }
 
     fn answer_err(stream: &mut TcpStream, msg: &str) {
-        TichuServer::answer(stream, &format!("err:{}", msg));
+        TichuConnection::answer(stream, &format!("err:{}", msg));
     }
 
     fn answer(stream: &mut TcpStream, msg: &str) {
@@ -100,11 +97,26 @@ impl TichuServer {
             Err(e) => error!("could not send message '{}': {}", msg, e),
         };
     }
+}
+
+pub struct TichuServer {
+    // Mutex<T> can be mutably accessed via a lock, Arc<T> allows multiple owners
+    inner: Arc<TichuConnection>,
+    join_handles: [Option<thread::JoinHandle<()>>; 4],
+}
+
+impl TichuServer {
+    pub fn new() -> TichuServer {
+        TichuServer {
+            inner: Arc::new(TichuConnection::new()),
+            join_handles: [None, None, None, None],
+        }
+    }
 
     pub fn main(&mut self, ip: &str, port: &str) {
         let listener = match TcpListener::bind(format!("{}:{}", ip, port)) {
             Ok(l) => {
-                info!("TichuServer listening on {}:{}", ip, port);
+                info!("TichuConnection listening on {}:{}", ip, port);
                 l
             }
             Err(e) => {
@@ -139,16 +151,15 @@ impl TichuServer {
         let mut username = String::new();
         bufstream.read_line(&mut username).unwrap();
         // if everything went well, say hello to the client
-        TichuServer::answer_ok(&mut stream);
+        TichuConnection::answer_ok(&mut stream);
         info!("new connection with {} via {}", username.trim(), addr);
         // spawn a new thread where the new connection is checked for incoming messages
-        let gameclone = Arc::clone(&self.game);
+        let innerclone = self.inner.clone();
         let handle = thread::spawn(move || {
-            TichuServer::handle_connection(
+            innerclone.handle_connection(
                 i,
                 stream,
                 Player::new(username.trim().to_string()),
-                gameclone,
             )
         });
         self.join_handles[i] = Some(handle);
