@@ -51,8 +51,8 @@ impl TichuConnection {
                             );
                         }
                     };
-                // lock gets released at end of this scope
-                } else if msg == "deal" {
+                    // lock gets released at end of this scope
+                } else if msg == "deal" && self.require_turn(player_index, &mut writestream) {
                     let mut game = self.game.lock().unwrap();
                     // TODO: only allow this if there's a new round
                     if game.current_player == player_index {
@@ -69,38 +69,34 @@ impl TichuConnection {
                     let (i, j) = parse_command_parameters(&msg);
                     player.unstage(i, j);
                     TichuConnection::answer_ok(&mut writestream);
-                } else if msg == "play" {
+                } else if msg == "play" && self.require_turn(player_index, &mut writestream) {
                     // check if it's the player's turn
                     let mut game = self.game.lock().unwrap();
-                    if game.current_player == player_index {
-                        let current_trick = game.get_current_trick();
-                        // let the player play against the current trick
-                        let played = player.play(current_trick);
-                        match played {
-                            Ok(trick) => {
-                                game.add_trick(trick);
-                                TichuConnection::answer_ok(&mut writestream);
-                                debug!("the current trick is {:?}", game.get_current_trick());
-                                // TODO: notify the others
-                            },
-                            Err(PlayerError::NotValid) => TichuConnection::answer_err(
-                                &mut writestream,
-                                "Your cards don't form a valid trick",
-                            ),
-                            Err(PlayerError::TooLow) => TichuConnection::answer_err(
-                                &mut writestream,
-                                "Your trick is lower than the current trick",
-                            ),
-                            Err(PlayerError::Incompatible) => TichuConnection::answer_err(
-                                &mut writestream,
-                                "Your trick is incompatible with the current trick",
-                            ),
-                        }
-                    } else {
-                        TichuConnection::answer_err(&mut writestream, "it's not your turn");
+                    let current_trick = game.get_current_trick();
+                    // let the player play against the current trick
+                    let played = player.play(current_trick);
+                    match played {
+                        Ok(trick) => {
+                            game.add_trick(trick);
+                            TichuConnection::answer_ok(&mut writestream);
+                            debug!("the current trick is {:?}", game.get_current_trick());
+                            // TODO: notify the others
+                        },
+                        Err(PlayerError::NotValid) => TichuConnection::answer_err(
+                            &mut writestream,
+                            "Your cards don't form a valid trick",
+                        ),
+                        Err(PlayerError::TooLow) => TichuConnection::answer_err(
+                            &mut writestream,
+                            "Your trick is lower than the current trick",
+                        ),
+                        Err(PlayerError::Incompatible) => TichuConnection::answer_err(
+                            &mut writestream,
+                            "Your trick is incompatible with the current trick",
+                        ),
                     }
                 } else {
-                    warn!("received invalid message: {}", msg);
+                    warn!("received invalid message from {}: {}", player.username, msg);
                     TichuConnection::answer_err(&mut writestream, "invalid command");
                 }
             } else if let Err(e) = line {
@@ -126,6 +122,19 @@ impl TichuConnection {
             Ok(_) => {}
             Err(e) => error!("could not send message '{}': {}", msg, e),
         };
+    }
+
+    fn require_turn(&self, player_index: usize, stream: &mut TcpStream) -> bool {
+        // check if it's the player's turn
+        // clients should themselves forbid to send commands if it's not their turn
+        // because checking on server side requires the lock on self.game
+        let game = self.game.lock().unwrap();
+        if game.current_player == player_index {
+            true
+        } else {
+            TichuConnection::answer_err(stream, "It's not your turn");
+            false
+        }
     }
 }
 
