@@ -72,6 +72,15 @@ class Client:
         elif status == "err":
             raise TichuError(message)
 
+    def play(self):
+        """submit the current stage to the table
+        """
+        status, message = self._send_and_recv("play")
+        if status == "ok":
+            self._stage = []
+        else:
+            raise TichuError(message)
+
 
 if __name__ == "__main__":
     client = Client()
@@ -80,3 +89,5 @@ if __name__ == "__main__":
     client.deal()
     client.request_cards()
     print(client._hand)
+    client.stage(0, 0)
+    client.play()

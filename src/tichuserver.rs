@@ -1,5 +1,5 @@
 use crate::deck::Card;
-use crate::player::Player;
+use crate::player::{Player, PlayerError};
 use crate::tichugame::TichuGame;
 use bufstream::BufStream;
 use log::{debug, error, info, warn};
@@ -29,7 +29,7 @@ impl TichuConnection {
         // use readstream to iterate over incoming lines, this has the advantage
         // that it blocks the thread until there is a new line as opposed to
         // loop { stream.read() }. writestream is used to send messages back
-        let mut readstream = BufStream::new(writestream.try_clone().unwrap());
+        let readstream = BufStream::new(writestream.try_clone().unwrap());
         for line in readstream.lines() {
             if let Ok(msg) = line {
                 debug!("got message for {}: {}", player.username, msg);
@@ -69,6 +69,36 @@ impl TichuConnection {
                     let (i, j) = parse_command_parameters(&msg);
                     player.unstage(i, j);
                     TichuConnection::answer_ok(&mut writestream);
+                } else if msg == "play" {
+                    // check if it's the player's turn
+                    let mut game = self.game.lock().unwrap();
+                    if game.current_player == player_index {
+                        let current_trick = game.get_current_trick();
+                        // let the player play against the current trick
+                        let played = player.play(current_trick);
+                        match played {
+                            Ok(trick) => {
+                                game.add_trick(trick);
+                                TichuConnection::answer_ok(&mut writestream);
+                                debug!("the current trick is {:?}", game.get_current_trick());
+                                // TODO: notify the others
+                            },
+                            Err(PlayerError::NotValid) => TichuConnection::answer_err(
+                                &mut writestream,
+                                "Your cards don't form a valid trick",
+                            ),
+                            Err(PlayerError::TooLow) => TichuConnection::answer_err(
+                                &mut writestream,
+                                "Your trick is lower than the current trick",
+                            ),
+                            Err(PlayerError::Incompatible) => TichuConnection::answer_err(
+                                &mut writestream,
+                                "Your trick is incompatible with the current trick",
+                            ),
+                        }
+                    } else {
+                        TichuConnection::answer_err(&mut writestream, "it's not your turn");
+                    }
                 } else {
                     warn!("received invalid message: {}", msg);
                     TichuConnection::answer_err(&mut writestream, "invalid command");
@@ -156,11 +186,7 @@ impl TichuServer {
         // spawn a new thread where the new connection is checked for incoming messages
         let innerclone = self.inner.clone();
         let handle = thread::spawn(move || {
-            innerclone.handle_connection(
-                i,
-                stream,
-                Player::new(username.trim().to_string()),
-            )
+            innerclone.handle_connection(i, stream, Player::new(username.trim().to_string()))
         });
         self.join_handles[i] = Some(handle);
     }

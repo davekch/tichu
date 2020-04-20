@@ -158,6 +158,7 @@ fn check_stairs(cards: &[Card]) -> bool {
     check_straight(&straight1) && check_straight(&straight2)
 }
 
+#[derive(Debug)]
 pub struct Trick {
     // implements the combination of cards that is going to be played
     // this may be a valid combination or not (tricks of invalid combinations

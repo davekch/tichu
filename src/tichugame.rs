@@ -53,10 +53,18 @@ impl TichuGame {
         }
     }
 
-    pub fn play(&mut self, trick: Trick) {
+    pub fn add_trick(&mut self, trick: Trick) {
         // players must make sure themselves that trick is valid
         self.tricks.push(trick);
         self.current_player = (self.current_player + 1) % 4;
         self.passes = 0;
+    }
+
+    pub fn get_current_trick(&self) -> Option<&Trick> {
+        if self.tricks.len() > 0 {
+            Some(&self.tricks[self.tricks.len() - 1])
+        } else {
+            None
+        }
     }
 }
