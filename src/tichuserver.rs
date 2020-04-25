@@ -10,12 +10,14 @@ use std::thread;
 
 struct TichuConnection {
     game: Mutex<TichuGame>,
+    streams: Mutex<[Option<TcpStream>; 4]>,
 }
 
 impl TichuConnection {
     pub fn new() -> TichuConnection {
         TichuConnection {
             game: Mutex::new(TichuGame::new()),
+            streams: Mutex::new([None, None, None, None]),
         }
     }
 
@@ -51,7 +53,7 @@ impl TichuConnection {
                             );
                         }
                     };
-                    // lock gets released at end of this scope
+                // lock gets released at end of this scope
                 } else if msg == "deal" && self.require_turn(player_index, &mut writestream) {
                     let mut game = self.game.lock().unwrap();
                     // TODO: only allow this if there's a new round
@@ -81,7 +83,7 @@ impl TichuConnection {
                             TichuConnection::answer_ok(&mut writestream);
                             debug!("the current trick is {:?}", game.get_current_trick());
                             // TODO: notify the others
-                        },
+                        }
                         Err(PlayerError::NotValid) => TichuConnection::answer_err(
                             &mut writestream,
                             "Your cards don't form a valid trick",
@@ -106,22 +108,33 @@ impl TichuConnection {
     }
 
     fn answer_ok(stream: &mut TcpStream) {
-        TichuConnection::answer(stream, "ok:");
+        TichuConnection::send(stream, "ok:");
     }
 
     fn answer_msg(stream: &mut TcpStream, msg: &str) {
-        TichuConnection::answer(stream, &format!("ok:{}", msg));
+        TichuConnection::send(stream, &format!("ok:{}", msg));
     }
 
     fn answer_err(stream: &mut TcpStream, msg: &str) {
-        TichuConnection::answer(stream, &format!("err:{}", msg));
+        TichuConnection::send(stream, &format!("err:{}", msg));
     }
 
-    fn answer(stream: &mut TcpStream, msg: &str) {
+    fn send(stream: &mut TcpStream, msg: &str) {
         match stream.write(format!("{}\n", msg).as_bytes()) {
             Ok(_) => {}
             Err(e) => error!("could not send message '{}': {}", msg, e),
         };
+    }
+
+    fn send_push(&self, msg: &str) {
+        // send a push message to all clients in self.streams
+        let mut allstreams = self.streams.lock().unwrap();
+        for stream in allstreams.iter_mut() {
+            match stream.iter_mut().next() {
+                Some(s) => TichuConnection::send(s, &format!("push:{}", msg)),
+                None => error!("could not send push message: No connection available"),
+            }
+        }
     }
 
     fn require_turn(&self, player_index: usize, stream: &mut TcpStream) -> bool {
@@ -191,6 +204,9 @@ impl TichuServer {
         bufstream.read_line(&mut username).unwrap();
         // if everything went well, say hello to the client
         TichuConnection::answer_ok(&mut stream);
+        // save a copy of the stream to inner (used for push messages to all clients)
+        let mut allstreams = self.inner.streams.lock().unwrap();
+        allstreams[i] = Some(stream.try_clone().unwrap());
         info!("new connection with {} via {}", username.trim(), addr);
         // spawn a new thread where the new connection is checked for incoming messages
         let innerclone = self.inner.clone();
