@@ -14,15 +14,15 @@ class TichuError(Exception):
 
 
 class Client:
-    def __init__(self, ip="127.0.0.1", port=1001):
-        self.remote_addr = (ip, port)
+    def __init__(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._hand = [] # the player's cards
         self._stage = [] # cards that the player is about to play
         self.push_msgs = Queue()
         self.response_msgs = Queue()
 
-    def connect(self, username):
+    def connect(self, username, ip="127.0.0.1", port=1001):
+        self.remote_addr = (ip, port)
         self.username = username
         self.socket.connect(self.remote_addr)
         listener = threading.Thread(target=self._listen)
@@ -30,9 +30,7 @@ class Client:
         # it is important to use _send_and_recv because recv blocks the thread until
         # it gets the message, this way it is guaranteed that the connection is
         # established before going on
-        status, message = self._send_and_recv(self.username)
-        if status == "err":
-            raise TichuError(message)
+        self._send(self.username)
 
     def _listen(self):
         sel = selectors.DefaultSelector()
