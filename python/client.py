@@ -1,4 +1,7 @@
 import socket
+from queue import Queue
+import selectors
+import threading
 import time
 from argparse import ArgumentParser
 
@@ -16,10 +19,14 @@ class Client:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._hand = [] # the player's cards
         self._stage = [] # cards that the player is about to play
+        self.push_msgs = Queue()
+        self.response_msgs = Queue()
 
     def connect(self, username):
         self.username = username
         self.socket.connect(self.remote_addr)
+        listener = threading.Thread(target=self._listen)
+        listener.start()
         # it is important to use _send_and_recv because recv blocks the thread until
         # it gets the message, this way it is guaranteed that the connection is
         # established before going on
@@ -27,15 +34,39 @@ class Client:
         if status == "err":
             raise TichuError(message)
 
+    def _listen(self):
+        sel = selectors.DefaultSelector()
+        sel.register(self.socket, selectors.EVENT_READ, data=b"")
+        while True:
+            # sel.select blocks so we don't have a busy loop
+            events = sel.select(timeout=None)
+            for key, mask in events:
+                sock = key.fileobj
+                data = key.data
+                # check if the socket is ready to be read
+                if mask & selectors.EVENT_READ:
+                    recv_data = sock.recv(BUFSIZE)
+                    # TODO: check if recv_data is empty
+                    data += recv_data
+                    # extract all messages (seperated by newline)
+                    while b"\n" in data:
+                        index = data.find(b"\n")
+                        # get the message until the line break and delete it from data
+                        # messages from the server are formatted like "status:message\n" so we split by ":"
+                        status, msg = data[:index].decode("UTF-8").split(":", 1)
+                        data = data[(index + 1):]
+                        # check what kind of message we got and put it in the appropriate queue
+                        if status == "push":
+                            self.push_msgs.put(msg)
+                        else:
+                            self.response_msgs.put((status, msg))
+
     def _send(self, message):
         self.socket.send(bytes(message + "\n", "UTF-8"))
 
     def _send_and_recv(self, message):
         self._send(message)
-        answer = self.socket.recv(BUFSIZE)
-        # answers from the server are formatted like "status:message\n"
-        status, message = answer.decode("UTF-8").strip().split(":", 1)
-        return (status, message)
+        return self.response_msgs.get() # get response from the response-queue (blocking)
 
     def deal(self):
         """tell the server to mix up the deck and deal new cards
