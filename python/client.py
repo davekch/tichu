@@ -1,5 +1,6 @@
 import socket
 import time
+from argparse import ArgumentParser
 
 
 BUFSIZE = 1024
@@ -83,9 +84,12 @@ class Client:
 
 
 if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument("--user")
+    args = parser.parse_args()
+
     client = Client()
-    username = input("username: ")
-    client.connect(username)
+    client.connect(args.user)
     client.deal()
     client.request_cards()
     print(client._hand)
