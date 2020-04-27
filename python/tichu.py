@@ -1,13 +1,14 @@
 import pygame as pg
 from pygame.color import THECOLORS as COLORS
 import threading
+import os
 from client import Client
 
 import logging
 logger = logging.getLogger("tichu")
 
 
-WIDTH, HEIGHT = 800, 600
+WIDTH, HEIGHT = 1000, 600
 FRAMERATE = 30
 pg.font.init()
 FONT = pg.font.Font(None, 32)
@@ -20,16 +21,9 @@ C_TEXT = COLORS["gray14"]
 C_TEXTBOX_ACTIVE = COLORS["darkturquoise"]
 C_TEXTBOX_INACTIVE = COLORS["azure2"]
 
-
+PATH = os.path.dirname(__file__)
+RESOURCES_PATH = os.path.join(PATH, "resources")
 SYMBOL_MAP = {
-    "red": ("♥", COLORS["red"]),
-    "blue": ("♠", COLORS["blue"]),
-    "green": ("♦", COLORS["green"]),
-    "black": ("♣", COLORS["black"]),
-    "dragon": "Dr",
-    "dog": "Do",
-    "phoenix": "P",
-    "one": "1",
     "two": "2",
     "three": "3",
     "four": "4",
@@ -45,16 +39,19 @@ SYMBOL_MAP = {
     "ace": "A",
 }
 
-def draw_card(card):
+def draw_card(card, screen, x, y):
+    rect = pg.Rect(x, y, 50, 70)
+    pg.draw.rect(screen, C_TEXT, rect, 2)
     # special cards don't have a space in their name
     if " " in card:
-        col, val = card.split()
-        symbol, color = SYMBOL_MAP[col]
-        text = "{}".format(SYMBOL_MAP[val.lower()])
+        color, value = card.split()
+        symbol = pg.image.load(os.path.join(RESOURCES_PATH, color + ".png"))
+        text = SYMBOL_MAP[value.lower()]
+        screen.blit(symbol, (x+5, y+5))
+        screen.blit(FONT.render(text, True, COLORS[color]), (x+5, y+20))
     else:
-        color = C_TEXT
-        text = SYMBOL_MAP[card.lower()]
-    return FONT.render(text, True, color)
+        symbol = pg.image.load(os.path.join(RESOURCES_PATH, card + ".png"))
+        screen.blit(symbol, (x+5, y+5))
 
 
 class TextInputBox:
@@ -226,9 +223,8 @@ class TichuGui:
 
             offset = 50
             for card in self.client._hand:
-                rendered = draw_card(card)
-                self.screen.blit(rendered, (offset, HEIGHT - 100))
-                offset += 20
+                draw_card(card, self.screen, 50 + offset, HEIGHT - 100)
+                offset += 60
 
             pg.display.flip()
 

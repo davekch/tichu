@@ -45,8 +45,9 @@ class Client:
     def disconnect(self):
         logger.info("disconnecting ...")
         self.connected = False
-        self.selector.unregister(self.socket)
-        self.selector.close()
+        if hasattr(self, "selector"):
+            self.selector.unregister(self.socket)
+            self.selector.close()
         self.socket.close()
         logger.debug("done")
 
