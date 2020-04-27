@@ -65,15 +65,6 @@ impl TichuConnection {
                         }
                     };
                 // lock gets released at end of this scope
-                } else if msg == "deal" && self.require_turn(player_index) {
-                    let mut game = self.game.lock().unwrap();
-                    // TODO: only allow this if there's a new round
-                    if game.current_player == player_index {
-                        game.shuffle_and_deal();
-                        self.answer_ok(player_index);
-                    } else {
-                        self.answer_err(player_index, "it's not your turn");
-                    }
                 } else if msg.starts_with("stage") {
                     let (i, j) = parse_command_parameters(&msg);
                     player.stage(i, j);
@@ -146,11 +137,15 @@ impl TichuConnection {
         };
     }
 
-    fn send_push(&self, msg: &str) {
+    fn send_push_to_all(&self, msg: &str) {
         // send a push message to all clients in self.streams
         for i in 0..4 {
             self.send(i, &format!("push:{}", msg));
         }
+    }
+
+    fn send_push(&self, index: usize, msg: &str) {
+        self.send(index, &format!("push:{}", msg));
     }
 
     fn require_turn(&self, player_index: usize) -> bool {
@@ -215,6 +210,12 @@ impl TichuServer {
     }
 
     pub fn main(&mut self) {
+        // shuffle and deal cards for everyone
+        {
+            let innerclone = self.inner.clone();
+            let mut game = innerclone.game.lock().unwrap();
+            game.shuffle_and_deal();
+        }
         // spawn a thread for each player and listen to their incoming messages
         for i in 0..4 {
             let innerclone = self.inner.clone();

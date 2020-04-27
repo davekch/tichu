@@ -1,5 +1,6 @@
 import pygame as pg
 from pygame.color import THECOLORS as COLORS
+import threading
 from client import Client
 
 
@@ -8,11 +9,49 @@ FRAMERATE = 30
 pg.font.init()
 FONT = pg.font.Font(None, 32)
 
+C_BACKGROUND = COLORS["white"]
 C_BUTTON = COLORS["darkseagreen1"]
+C_BUTTON_DISABLED = COLORS["darkgray"]
 C_BUTTON_PRESSED = COLORS["darkseagreen4"]
 C_TEXT = COLORS["gray14"]
 C_TEXTBOX_ACTIVE = COLORS["darkturquoise"]
 C_TEXTBOX_INACTIVE = COLORS["azure2"]
+
+
+SYMBOL_MAP = {
+    "red": ("♥", COLORS["red"]),
+    "blue": ("♠", COLORS["blue"]),
+    "green": ("♦", COLORS["green"]),
+    "black": ("♣", COLORS["black"]),
+    "dragon": "Dr",
+    "dog": "Do",
+    "phoenix": "P",
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "ten": "10",
+    "jack": "J",
+    "queen": "Q",
+    "king": "K",
+    "ace": "A",
+}
+
+def draw_card(card):
+    # special cards don't have a space in their name
+    if " " in card:
+        col, val = card.split()
+        symbol, color = SYMBOL_MAP[col]
+        text = "{}\n{}".format(symbol, SYMBOL_MAP[val.lower()])
+    else:
+        color = C_TEXT
+        text = SYMBOL_MAP[card.lower()]
+    return FONT.render(text, True, color)
 
 
 class TextInputBox:
@@ -57,28 +96,44 @@ class Button:
         self.text = text
         self.on_click = on_click
         self.pressed = False
+        self.enabled = True
 
     def handle_event(self, event):
         if event.type == pg.MOUSEBUTTONDOWN:
             if self.rectangle.collidepoint(event.pos):
                 self.pressed = True
-                if callable(self.on_click):
-                    return self.on_click()
         elif event.type == pg.MOUSEBUTTONUP:
             if self.pressed:
                 self.pressed = False
+                # call on_click on release of the button
+                if callable(self.on_click):
+                    return self.on_click()
 
     def draw(self, screen):
-        color = C_BUTTON if not self.pressed else C_BUTTON_PRESSED
+        if not self.enabled:
+            color = C_BUTTON_DISABLED
+        elif self.pressed:
+            color = C_BUTTON_PRESSED
+        else:
+            color = C_BUTTON
+
         pg.draw.rect(screen, color, self.rectangle, 0)
         text = FONT.render(self.text, True, C_TEXT)
-        screen.blit(text, (self.rectangle.x + self.rectangle.w/2 - text.get_width()/2, self.rectangle.y + 10))
+        screen.blit(
+            text,
+            (
+                self.rectangle.x + self.rectangle.w / 2 - text.get_width() / 2,
+                self.rectangle.y + 10,
+            ),
+        )
 
 
 class TichuGui:
     def __init__(self):
         self.client = Client()
         self.running = True
+        # this is true if all others are connected and the game is running
+        self.on_main = False
 
         pg.init()
         self.screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -88,12 +143,23 @@ class TichuGui:
 
     def login_screen(self):
         logged_in = False
-        username_box = TextInputBox(WIDTH/2 - 150, HEIGHT/2 - 75, 300, 40, "username")
-        addr_box = TextInputBox(WIDTH/2 - 150, HEIGHT/2 - 20, 300, 40, "IP:port")
-        go_button = Button(WIDTH/2 - 150, HEIGHT/2 + 30, 300, 40, "Go!", on_click=lambda: (username_box.text, addr_box.text))
+        username_box = TextInputBox(
+            WIDTH / 2 - 150, HEIGHT / 2 - 75, 300, 40, "username"
+        )
+        addr_box = TextInputBox(
+            WIDTH / 2 - 150, HEIGHT / 2 - 20, 300, 40, "127.0.0.1:1001"
+        )
+        go_button = Button(
+            WIDTH / 2 - 150,
+            HEIGHT / 2 + 30,
+            300,
+            40,
+            "Go!",
+            on_click=lambda: (username_box.text, addr_box.text),
+        )
         while not logged_in and self.running:
             self.clock.tick(FRAMERATE)
-            self.screen.fill(COLORS["white"])
+            self.screen.fill(C_BACKGROUND)
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     self.running = False
@@ -109,17 +175,52 @@ class TichuGui:
             if result:
                 username, addr = result
                 ip, port = addr.split(":")
-                self.client.connect(username, ip, int(port))
+
+                # helper function for new thread
+                def connect():
+                    self.client.connect(username, ip, int(port))
+                    self.on_main = True
+
+                _t = threading.Thread(target=connect)
+                _t.start()
                 logged_in = True
 
             pg.display.flip()
 
     def wait_screen(self):
         text = FONT.render("wait for the others to connect ...", True, C_TEXT)
+        while self.running and not self.on_main:
+            # self.on_main gets set to true as soon as the thread started in login_screen
+            # is finished
+            self.clock.tick(FRAMERATE)
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    self.running = False
+
+            self.screen.fill(C_BACKGROUND)
+            self.screen.blit(text, (WIDTH / 2 - text.get_width() / 2, HEIGHT / 2 - 20))
+            pg.display.flip()
+
+    def main_screen(self):
+        # TODO: on_click: disable this button + error handling
+        take_hand_button = Button(50, 50, 180, 40, "take new cards", on_click=self.client.request_cards)
         while self.running:
             self.clock.tick(FRAMERATE)
-            self.screen.fill(COLORS["white"])
-            self.screen.blit(text, (WIDTH/2 - text.get_width()/2, HEIGHT/2 - 20))
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    self.running = False
+                else:
+                    take_hand_button.handle_event(event)
+
+            self.screen.fill(C_BACKGROUND)
+            take_hand_button.draw(self.screen)
+
+            offset = 50
+            for card in self.client._hand:
+                rendered = draw_card(card)
+                self.screen.blit(rendered, (offset, HEIGHT - 100))
+                offset += 20
+
             pg.display.flip()
 
 
@@ -127,3 +228,4 @@ if __name__ == "__main__":
     tichu = TichuGui()
     tichu.login_screen()
     tichu.wait_screen()
+    tichu.main_screen()

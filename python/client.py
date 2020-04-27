@@ -18,6 +18,7 @@ class Client:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._hand = [] # the player's cards
         self._stage = [] # cards that the player is about to play
+        self.turn = False # is it my turn?
         self.push_msgs = Queue()
         self.response_msgs = Queue()
 
@@ -30,7 +31,9 @@ class Client:
         # it is important to use _send_and_recv because recv blocks the thread until
         # it gets the message, this way it is guaranteed that the connection is
         # established before going on
-        self._send(self.username)
+        status, message = self._send_and_recv(self.username)
+        if status == "err":
+            raise TichuError(message)
 
     def _listen(self):
         sel = selectors.DefaultSelector()
@@ -65,14 +68,6 @@ class Client:
     def _send_and_recv(self, message):
         self._send(message)
         return self.response_msgs.get() # get response from the response-queue (blocking)
-
-    def deal(self):
-        """tell the server to mix up the deck and deal new cards
-        raises TichuError if it's not the player's turn or if the round is still ongoing
-        """
-        status, message = self._send_and_recv("deal")
-        if status == "err":
-            raise TichuError(message)
 
     def request_cards(self):
         """after a deal, request the new cards from the server
