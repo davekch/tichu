@@ -19,6 +19,7 @@ pub enum RegularKind {
     Jack,
     Queen,
     King,
+    Ace,
 }
 
 #[derive(Debug, Display, PartialEq, Eq, Copy, Clone, Hash, EnumIter)]
@@ -165,7 +166,7 @@ mod tests {
     #[test]
     fn test_new_deck_length() {
         let deck = Deck::new();
-        assert_eq!(deck.cards.len(), 52);
+        assert_eq!(deck.cards.len(), 56);
     }
 
     #[test]
@@ -192,10 +193,10 @@ mod tests {
         let mut deck = Deck::new();
         let hands = deck.deal();
         // deck shouldn't change
-        assert_eq!(deck.cards.len(), 52);
+        assert_eq!(deck.cards.len(), 56);
         for hand in &hands {
             // check if each player has 13 cards
-            assert_eq!(hand.len(), 13);
+            assert_eq!(hand.len(), 14);
         }
     }
 
