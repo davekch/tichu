@@ -4,8 +4,10 @@ use crate::tichugame::TichuGame;
 use bufstream::BufStream;
 use log::{debug, error, info, warn};
 use std::io::{BufRead, Write};
+use std::io::{Error, ErrorKind};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 struct TichuConnection {
@@ -24,6 +26,7 @@ impl TichuConnection {
     pub fn handle_connection(
         &self,
         player_index: usize,
+        exit_condition: Arc<AtomicBool>,
     ) {
         // say hello (this message also tells the client that every other player is connected)
         self.answer_ok(player_index);
@@ -44,6 +47,10 @@ impl TichuConnection {
 
         // main loop waiting for commands
         for line in readstream.lines() {
+            if exit_condition.load(Ordering::SeqCst) {
+                break;
+            }
+
             if let Ok(msg) = line {
                 debug!("got message for {}: {}", player.username, msg);
                 // check for all the possible messages
@@ -167,10 +174,11 @@ pub struct TichuServer {
     inner: Arc<TichuConnection>,
     listener: TcpListener,
     join_handles: [Option<thread::JoinHandle<()>>; 4],
+    exit_condition: Arc<AtomicBool>,
 }
 
 impl TichuServer {
-    pub fn accept(ip: &str, port: &str) -> Result<TichuServer, std::io::Error> {
+    pub fn accept(ip: &str, port: &str, exit_condition: Arc<AtomicBool>) -> Result<TichuServer, Error> {
         let listener = match TcpListener::bind(format!("{}:{}", ip, port)) {
             Ok(l) => {
                 info!("TichuConnection listening on {}:{}", ip, port);
@@ -182,6 +190,11 @@ impl TichuServer {
         let mut streams: [Option<TcpStream>; 4] = [None, None, None, None];
         let mut i: usize = 0;
         for stream in listener.incoming() {
+            // check if we received ctrl-c
+            if exit_condition.load(Ordering::SeqCst) {
+                break;
+            }
+
             match stream {
                 Ok(stream) => {
                     let addr = stream.peer_addr().unwrap();
@@ -196,6 +209,12 @@ impl TichuServer {
                 Err(e) => return Err(e),
             }
         }
+
+        if exit_condition.load(Ordering::SeqCst) {
+            // if we were interrupted by ctrl-c, we must return an error now
+            return Err(Error::new(ErrorKind::Interrupted, "could not create TichuConnection"));
+        }
+
         let connections = [
             Mutex::new(streams[0].take().unwrap()),
             Mutex::new(streams[1].take().unwrap()),
@@ -206,6 +225,7 @@ impl TichuServer {
             inner: Arc::new(TichuConnection::new(connections)),
             listener: listener,
             join_handles: [None, None, None, None],
+            exit_condition: exit_condition,
         })
     }
 
@@ -219,8 +239,9 @@ impl TichuServer {
         // spawn a thread for each player and listen to their incoming messages
         for i in 0..4 {
             let innerclone = self.inner.clone();
+            let exit = self.exit_condition.clone();
             let handle = thread::spawn(move || {
-                innerclone.handle_connection(i)
+                innerclone.handle_connection(i, exit)
             });
             self.join_handles[i] = Some(handle);
         }
@@ -235,12 +256,18 @@ impl TichuServer {
 
     fn join_all(&mut self) {
         for handle in &mut self.join_handles {
-            match handle.take().unwrap().join() {
+            let h = handle.take();
+            if let None = h {
+                debug!("joining: got a none handler");
+                continue;
+            }
+            debug!("joining ...");
+            match h.unwrap().join() {
                 Ok(_) => {}
                 Err(_) => error!("Could not join thread"),
             }
         }
-        info!("all treads joined");
+        debug!("all threads joined");
     }
 }
 
