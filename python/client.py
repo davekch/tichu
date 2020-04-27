@@ -4,6 +4,8 @@ import selectors
 import threading
 import time
 from argparse import ArgumentParser
+import logging
+logger = logging.getLogger("client")
 
 
 BUFSIZE = 1024
@@ -16,6 +18,7 @@ class TichuError(Exception):
 class Client:
     def __init__(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.connected = False
         self._hand = [] # the player's cards
         self._stage = [] # cards that the player is about to play
         self.turn = False # is it my turn?
@@ -25,20 +28,34 @@ class Client:
     def connect(self, username, ip="127.0.0.1", port=1001):
         self.remote_addr = (ip, port)
         self.username = username
+        logger.info("connecting to {}".format(self.remote_addr))
         self.socket.connect(self.remote_addr)
-        listener = threading.Thread(target=self._listen)
+        self.connected = True
+        listener = threading.Thread(target=self._listen, daemon=True)
         listener.start()
         # it is important to use _send_and_recv because recv blocks the thread until
         # it gets the message, this way it is guaranteed that the connection is
         # established before going on
+        logger.debug("waiting for answer ...")
         status, message = self._send_and_recv(self.username)
         if status == "err":
             raise TichuError(message)
+        logger.debug("got it, connection established")
+
+    def disconnect(self):
+        logger.info("disconnecting ...")
+        self.connected = False
+        self.selector.unregister(self.socket)
+        self.selector.close()
+        self.socket.close()
+        logger.debug("done")
 
     def _listen(self):
         sel = selectors.DefaultSelector()
+        # save the selector for later
+        self.selector = sel
         sel.register(self.socket, selectors.EVENT_READ, data=b"")
-        while True:
+        while self.connected:
             # sel.select blocks so we don't have a busy loop
             events = sel.select(timeout=None)
             for key, mask in events:

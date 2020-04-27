@@ -3,6 +3,9 @@ from pygame.color import THECOLORS as COLORS
 import threading
 from client import Client
 
+import logging
+logger = logging.getLogger("tichu")
+
 
 WIDTH, HEIGHT = 800, 600
 FRAMERATE = 30
@@ -47,7 +50,7 @@ def draw_card(card):
     if " " in card:
         col, val = card.split()
         symbol, color = SYMBOL_MAP[col]
-        text = "{}\n{}".format(symbol, SYMBOL_MAP[val.lower()])
+        text = "{}".format(SYMBOL_MAP[val.lower()])
     else:
         color = C_TEXT
         text = SYMBOL_MAP[card.lower()]
@@ -134,6 +137,7 @@ class TichuGui:
         self.running = True
         # this is true if all others are connected and the game is running
         self.on_main = False
+        self.threads = []
 
         pg.init()
         self.screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -181,8 +185,9 @@ class TichuGui:
                     self.client.connect(username, ip, int(port))
                     self.on_main = True
 
-                _t = threading.Thread(target=connect)
+                _t = threading.Thread(target=connect, daemon=True)
                 _t.start()
+                self.threads.append(_t)
                 logged_in = True
 
             pg.display.flip()
@@ -200,6 +205,10 @@ class TichuGui:
             self.screen.fill(C_BACKGROUND)
             self.screen.blit(text, (WIDTH / 2 - text.get_width() / 2, HEIGHT / 2 - 20))
             pg.display.flip()
+
+        if self.running:
+            # join the connect-thread (it is now finished)
+            self.threads.pop().join()
 
     def main_screen(self):
         # TODO: on_click: disable this button + error handling
@@ -223,9 +232,22 @@ class TichuGui:
 
             pg.display.flip()
 
+    def quit(self):
+        logger.info("quitting pygame ... ")
+        self.client.disconnect()
+        pg.display.quit()
+        pg.quit()
+
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s [%(levelname)-8s] %(name)s.%(funcName)s: %(message)s",
+        datefmt="%H:%M:%S"
+    )
+
     tichu = TichuGui()
     tichu.login_screen()
     tichu.wait_screen()
     tichu.main_screen()
+    tichu.quit()
