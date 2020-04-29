@@ -1,0 +1,17 @@
+name: tichuserver
+version: "0.1.0"
+author: "davekch <dave-koch@web.de>"
+about: TCP server for a single game of Tichu
+args:
+    - ip_address:
+        short: ip
+        long: ip_address
+        value_name: IP
+        takes_value: true
+        help: specify an IP address
+    - port:
+        short: p
+        long: port
+        value_name: PORT
+        takes_value: true
+        help: specify a port
