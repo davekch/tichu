@@ -51,7 +51,6 @@ impl TichuConnection {
                     // acquire the lock to self.game
                     let mut game = self.game.lock().unwrap();
                     match game.take_hand(player_index) {
-                        // TODO send message back to client
                         Some(h) => {
                             self.answer_msg(player_index, &format_hand(&h));
                             player.take_new_hand(h);
@@ -72,6 +71,14 @@ impl TichuConnection {
                 } else if msg.starts_with("unstage") {
                     let (i, j) = parse_command_parameters(&msg);
                     player.unstage(i, j);
+                    self.answer_ok(player_index);
+                } else if msg.starts_with("mv_h") {
+                    let (i, j) =  parse_command_parameters(&msg);
+                    player.move_hand(i, j);
+                    self.answer_ok(player_index);
+                } else if msg.starts_with("mv_s") {
+                    let (i, j) = parse_command_parameters(&msg);
+                    player.move_stage(i, j);
                     self.answer_ok(player_index);
                 } else if msg == "play" && self.require_turn(player_index) {
                     // check if it's the player's turn

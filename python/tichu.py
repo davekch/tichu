@@ -185,10 +185,27 @@ class Hand:
         for card in self.cardbuttons:
             card.draw(screen)
 
-    def handle_event(self, event):
+    def handle_event(self, event, callback):
+        pos = pg.mouse.get_pos()
+        if self.background.collidepoint(pos):
+            if event.type == pg.MOUSEBUTTONUP:
+                # check if any of the cards are dropped here
+                moved_card = None
+                target = None
+                for i, card in enumerate(self.cardbuttons):
+                    if card.dragged:
+                        moved_card = i
+                        card.dragged = False
+                    elif card.collidepoint(pos):
+                        target = i
+
+                if moved_card is not None and target is not None:
+                    if not moved_card == target:
+                        callback(moved_card, target)
+                        return
+
         for card in self.cardbuttons:
             card.handle_event(event)
-
 
 class TichuGui:
     def __init__(self):
@@ -286,7 +303,10 @@ class TichuGui:
                     self.running = False
                 else:
                     take_hand_button.handle_event(event)
-                    hand_cards.handle_event(event)
+                    hand_cards.handle_event(event, callback=lambda i, j: (
+                        self.client.move_hand(i, j),
+                        hand_cards.set_cards(self.client._hand)
+                    ))
 
             self.screen.fill(C_BACKGROUND)
             take_hand_button.draw(self.screen)

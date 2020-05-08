@@ -115,6 +115,24 @@ class Client:
         elif status == "err":
             raise TichuError(message)
 
+    def move_hand(self, i, j):
+        """move card i in hand to j
+        """
+        status, message = self._send_and_recv("mv_h {} {}".format(i, j))
+        if status == "ok":
+            self._hand.insert(j, self._hand.pop(i))
+        elif status == "err":
+            raise TichuError(message)
+
+    def move_stage(self, i, j):
+        """move card i in stage to j
+        """
+        status, message = self._send_and_recv("mv_s {} {}".format(i, j))
+        if status == "ok":
+            self._stage.insert(j, self._stage.pop(i))
+        elif status == "err":
+            raise TichuError(message)
+
     def play(self):
         """submit the current stage to the table
         """

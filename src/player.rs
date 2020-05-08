@@ -20,14 +20,28 @@ impl Player {
         self.hand = hand;
     }
 
+    // in all these "i, j" style methods, the client must check themselves that
+    // the is and js are valid
     pub fn stage(&mut self, i: usize, j: usize) {
-        // move card ith card in hand to j in stage
+        // move ith card in hand to j in stage
         self.stage.insert(j, self.hand.remove(i));
     }
 
     pub fn unstage(&mut self, i: usize, j: usize) {
-        // move card ith card in stage to j in hand
+        // move ith card in stage to j in hand
         self.hand.insert(j, self.stage.remove(i));
+    }
+
+    pub fn move_hand(&mut self, i: usize, j: usize) {
+        // move ith card in hand to j in hand
+        let card = self.hand.remove(i);
+        self.hand.insert(j, card);
+    }
+
+    pub fn move_stage(&mut self, i: usize, j: usize) {
+        // move ith card in stage to j in stage
+        let card = self.stage.remove(i);
+        self.stage.insert(j, card);
     }
 
     pub fn play(&mut self, trick: Option<&Trick>) -> Result<Trick, PlayerError> {
