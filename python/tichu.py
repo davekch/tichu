@@ -5,13 +5,16 @@ import os
 from client import Client
 
 import logging
+
 logger = logging.getLogger("tichu")
 
 
-WIDTH, HEIGHT = 1000, 600
+WIDTH, HEIGHT = 1300, 800
 FRAMERATE = 30
 pg.font.init()
 FONT = pg.font.Font(None, 32)
+CARD_WIDTH = 60
+CARD_HEIGHT = 90
 
 C_BACKGROUND = COLORS["white"]
 C_BUTTON = COLORS["darkseagreen1"]
@@ -38,20 +41,6 @@ SYMBOL_MAP = {
     "king": "K",
     "ace": "A",
 }
-
-def draw_card(card, screen, x, y):
-    rect = pg.Rect(x, y, 50, 70)
-    pg.draw.rect(screen, C_TEXT, rect, 2)
-    # special cards don't have a space in their name
-    if " " in card:
-        color, value = card.split()
-        symbol = pg.image.load(os.path.join(RESOURCES_PATH, color + ".png"))
-        text = SYMBOL_MAP[value.lower()]
-        screen.blit(symbol, (x+5, y+5))
-        screen.blit(FONT.render(text, True, COLORS[color]), (x+5, y+20))
-    else:
-        symbol = pg.image.load(os.path.join(RESOURCES_PATH, card + ".png"))
-        screen.blit(symbol, (x+5, y+5))
 
 
 class TextInputBox:
@@ -126,6 +115,59 @@ class Button:
                 self.rectangle.y + 10,
             ),
         )
+
+
+class Card(pg.Rect):
+    def __init__(self, x, y, name):
+        pg.Rect.__init__(self, x, y, CARD_WIDTH, CARD_HEIGHT)
+        # special cards don't have a space in their name
+        if " " in name:
+            self.color, value = name.split()
+            self.symbol = pg.image.load(
+                os.path.join(RESOURCES_PATH, self.color + ".png")
+            )
+            self.text = SYMBOL_MAP[value.lower()]
+        else:
+            self.symbol = pg.image.load(os.path.join(RESOURCES_PATH, name + ".png"))
+
+    def draw(self, screen):
+        pg.draw.rect(screen, C_TEXT, self, 2)  # draw border of rectangle
+        screen.blit(self.symbol, (self.x - 20, self.y + 5))
+        if hasattr(self, "text"):
+            screen.blit(
+                FONT.render(self.text, True, COLORS[self.color]),
+                (self.x + CARD_WIDTH - 25, self.y + 5),
+            )
+
+
+class Hand:
+    def __init__(self, x, y, total_w, total_h):
+        self.x = x
+        self.y = y
+        self.total_w = total_w
+        self.total_h = total_h
+        self.background = pg.Rect(x, y, total_w, total_h)
+        self.cardbuttons = []
+
+    def set_cards(self, cardnames):
+        self.cardbuttons = []
+        if len(cardnames) == 0:
+            return
+
+        # calculate the space the cards will need
+        space = 20  # space between 2 cards
+        needed_width = CARD_WIDTH * len(cardnames) + space * (len(cardnames) - 1)
+        # x coordinate of first card
+        x0 = self.x + int(self.total_w / 2) - int(needed_width / 2)
+        y0 = self.y + 20
+        for i, card in enumerate(cardnames):
+            x = x0 + i * (CARD_WIDTH + space)
+            self.cardbuttons.append(Card(x, y0, card))
+
+    def draw(self, screen):
+        pg.draw.rect(screen, C_TEXT, self.background, 3)
+        for card in self.cardbuttons:
+            card.draw(screen)
 
 
 class TichuGui:
@@ -209,7 +251,10 @@ class TichuGui:
 
     def main_screen(self):
         # TODO: on_click: disable this button + error handling
-        take_hand_button = Button(50, 50, 180, 40, "take new cards", on_click=self.client.request_cards)
+        take_hand_button = Button(
+            50, 50, 180, 40, "take new cards", on_click=self.client.request_cards
+        )
+        hand_cards = Hand(50, HEIGHT - CARD_HEIGHT - 80, WIDTH - 100, CARD_HEIGHT + 40)
         while self.running:
             self.clock.tick(FRAMERATE)
             for event in pg.event.get():
@@ -221,10 +266,8 @@ class TichuGui:
             self.screen.fill(C_BACKGROUND)
             take_hand_button.draw(self.screen)
 
-            offset = 50
-            for card in self.client._hand:
-                draw_card(card, self.screen, 50 + offset, HEIGHT - 100)
-                offset += 60
+            hand_cards.set_cards(self.client._hand)
+            hand_cards.draw(self.screen)
 
             pg.display.flip()
 
@@ -239,7 +282,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=logging.DEBUG,
         format="%(asctime)s [%(levelname)-8s] %(name)s.%(funcName)s: %(message)s",
-        datefmt="%H:%M:%S"
+        datefmt="%H:%M:%S",
     )
 
     tichu = TichuGui()
