@@ -119,6 +119,9 @@ class Button:
 
 class Card(pg.Rect):
     def __init__(self, x, y, name):
+        # save original coordinates as the current coordinates may change via drag and drop
+        self.x0 = x
+        self.y0 = y
         pg.Rect.__init__(self, x, y, CARD_WIDTH, CARD_HEIGHT)
         # special cards don't have a space in their name
         if " " in name:
@@ -129,6 +132,8 @@ class Card(pg.Rect):
             self.text = SYMBOL_MAP[value.lower()]
         else:
             self.symbol = pg.image.load(os.path.join(RESOURCES_PATH, name + ".png"))
+        # is this card being dragged around right now
+        self.dragged = False
 
     def draw(self, screen):
         pg.draw.rect(screen, C_TEXT, self, 2)  # draw border of rectangle
@@ -138,6 +143,17 @@ class Card(pg.Rect):
                 FONT.render(self.text, True, COLORS[self.color]),
                 (self.x + CARD_WIDTH - 25, self.y + 5),
             )
+
+    def handle_event(self, event):
+        if self.dragged:
+            # move the card
+            self.x, self.y = pg.mouse.get_pos()
+        elif event.type == pg.MOUSEBUTTONDOWN and self.collidepoint(event.pos):
+            self.dragged = True
+        if event.type == pg.MOUSEBUTTONUP and self.dragged:
+            self.dragged = False
+            # restore old location
+            self.x, self.y = self.x0, self.y0
 
 
 class Hand:
@@ -168,6 +184,10 @@ class Hand:
         pg.draw.rect(screen, C_TEXT, self.background, 3)
         for card in self.cardbuttons:
             card.draw(screen)
+
+    def handle_event(self, event):
+        for card in self.cardbuttons:
+            card.handle_event(event)
 
 
 class TichuGui:
@@ -251,10 +271,14 @@ class TichuGui:
 
     def main_screen(self):
         # TODO: on_click: disable this button + error handling
-        take_hand_button = Button(
-            50, 50, 180, 40, "take new cards", on_click=self.client.request_cards
-        )
         hand_cards = Hand(50, HEIGHT - CARD_HEIGHT - 80, WIDTH - 100, CARD_HEIGHT + 40)
+        # callback function for take_hand_button
+        def take_hand():
+            self.client.request_cards()
+            hand_cards.set_cards(self.client._hand)
+
+        take_hand_button = Button(50, 50, 180, 40, "take new cards", on_click=take_hand)
+
         while self.running:
             self.clock.tick(FRAMERATE)
             for event in pg.event.get():
@@ -262,11 +286,10 @@ class TichuGui:
                     self.running = False
                 else:
                     take_hand_button.handle_event(event)
+                    hand_cards.handle_event(event)
 
             self.screen.fill(C_BACKGROUND)
             take_hand_button.draw(self.screen)
-
-            hand_cards.set_cards(self.client._hand)
             hand_cards.draw(self.screen)
 
             pg.display.flip()
