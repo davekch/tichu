@@ -2,6 +2,7 @@ import pygame as pg
 from pygame.color import THECOLORS as COLORS
 import threading
 import os
+from functools import wraps
 from client import Client
 
 import logging
@@ -144,25 +145,10 @@ class Card(pg.Rect):
                 (self.x + CARD_WIDTH - 25, self.y + 5),
             )
 
-    def handle_event(self, event):
-        if self.dragged:
-            # move the card
-            self.x, self.y = pg.mouse.get_pos()
-        elif event.type == pg.MOUSEBUTTONDOWN and self.collidepoint(event.pos):
-            self.dragged = True
-        if event.type == pg.MOUSEBUTTONUP and self.dragged:
-            self.dragged = False
-            # restore old location
-            self.x, self.y = self.x0, self.y0
 
-
-class Hand:
-    def __init__(self, x, y, total_w, total_h):
-        self.x = x
-        self.y = y
-        self.total_w = total_w
-        self.total_h = total_h
-        self.background = pg.Rect(x, y, total_w, total_h)
+class Hand(pg.Rect):
+    def __init__(self, x, y, width, height):
+        pg.Rect.__init__(self, x, y, width, height)
         self.cardbuttons = []
 
     def set_cards(self, cardnames):
@@ -174,38 +160,112 @@ class Hand:
         space = 20  # space between 2 cards
         needed_width = CARD_WIDTH * len(cardnames) + space * (len(cardnames) - 1)
         # x coordinate of first card
-        x0 = self.x + int(self.total_w / 2) - int(needed_width / 2)
+        x0 = self.x + int(self.width / 2) - int(needed_width / 2)
         y0 = self.y + 20
         for i, card in enumerate(cardnames):
             x = x0 + i * (CARD_WIDTH + space)
             self.cardbuttons.append(Card(x, y0, card))
 
     def draw(self, screen):
-        pg.draw.rect(screen, C_TEXT, self.background, 3)
+        pg.draw.rect(screen, C_TEXT, self, 3)
         for card in self.cardbuttons:
             card.draw(screen)
 
-    def handle_event(self, event, callback):
+
+class CardArea:
+    """displays the player's cards and stage + handles drag & drop of cards
+    """
+
+    def __init__(self, x, y, width, height, callbackobject):
+        self.hand = Hand(x, y, width, height / 2 - 10)
+        self.stage = Hand(x, y - height / 2 - 20, width, height / 2 - 10)
+        # this will contain a triple of the card being dragged, its index and either "hand" or "stage"
+        # depending on where the card is from
+        self.dragged_card = None
+        self.callbackmatrix = {
+            "hand": {"hand": callbackobject.move_hand, "stage": callbackobject.stage},
+            "stage": {"hand": callbackobject.unstage, "stage": callbackobject.move_stage},
+        }
+        self.callbackobject = callbackobject
+
+    def set_hand(self, cardnames):
+        self.hand.set_cards(cardnames)
+
+    def set_stage(self, cardnames):
+        self.stage.set_cards(cardnames)
+
+    def draw(self, screen):
+        self.hand.draw(screen)
+        self.stage.draw(screen)
+
+    def handle_event(self, event):
         pos = pg.mouse.get_pos()
-        if self.background.collidepoint(pos):
-            if event.type == pg.MOUSEBUTTONUP:
-                # check if any of the cards are dropped here
-                moved_card = None
-                target = None
-                for i, card in enumerate(self.cardbuttons):
-                    if card.dragged:
-                        moved_card = i
-                        card.dragged = False
-                    elif card.collidepoint(pos):
-                        target = i
+        # first, move around a card if one is being dragged
+        if self.dragged_card:
+            card, _, _ = self.dragged_card
+            card.x, card.y = pos
 
-                if moved_card is not None and target is not None:
-                    if not moved_card == target:
-                        callback(moved_card, target)
-                        return
+        if event.type == pg.MOUSEBUTTONDOWN:
+            # check if we hit a card and if yes, from which stack it comes
+            cardstack = None
+            # remember from where we're about to drag a card
+            if self.hand.collidepoint(pos):
+                cardstack = self.hand.cardbuttons
+                stackname = "hand"
+            elif self.stage.collidepoint(pos):
+                cardstack = self.stage.cardbuttons
+                stackname = "stage"
+            if cardstack is not None:
+                # check for collisions with cards
+                for i, card in enumerate(cardstack):
+                    if card.collidepoint(pos):
+                        self.dragged_card = (card, i, stackname)
+                        logger.debug("picked card {} from {}".format(i, stackname))
+                        break
 
-        for card in self.cardbuttons:
-            card.handle_event(event)
+        elif event.type == pg.MOUSEBUTTONUP:
+            if not self.dragged_card:
+                # nothing to do ...
+                return
+            # is a card dropped into emptiness?
+            if not (self.hand.collidepoint(pos) or self.stage.collidepoint(pos)):
+                card, _, _ = self.dragged_card
+                card.x, card.y = card.x0, card.y0
+                self.dragged_card = None
+                return
+
+            if self.hand.collidepoint(pos):
+                targetstack = self.hand.cardbuttons
+                targetname = "hand"
+            elif self.stage.collidepoint(pos):
+                targetstack = self.stage.cardbuttons
+                targetname = "stage"
+
+            logger.debug("going to drop onto {}".format(targetname))
+            card, i, sourcename = self.dragged_card
+            # calculate targetindex j
+            if len(targetstack) == 0:
+                logger.debug("aptly {} has len 0".format(targetname))
+                j = 0
+            elif pos[0] > targetstack[-1].x:
+                logger.debug("mouselocation {} is larger than {}, drop at end".format(pos[0], targetstack[0].x))
+                j = len(targetstack) - 1
+            else:
+                for k, c in enumerate(targetstack):
+                    logger.debug("comparing mousex {} with card {} at pos {}".format(pos[0], k, c.x))
+                    if c.collidepoint(pos) and not i == k:
+                        j = k
+                        break
+                    elif pos[0] < c.x:
+                        j = max(k - 1, 0)
+                        break
+            # call the callback
+            self.callbackmatrix[sourcename][targetname](i, j)
+            # update hand and stage
+            self.set_hand(self.callbackobject._hand)
+            self.set_stage(self.callbackobject._stage)
+            self.dragged_card = None
+
 
 class TichuGui:
     def __init__(self):
@@ -287,13 +347,19 @@ class TichuGui:
             self.threads.pop().join()
 
     def main_screen(self):
-        # TODO: on_click: disable this button + error handling
-        hand_cards = Hand(50, HEIGHT - CARD_HEIGHT - 80, WIDTH - 100, CARD_HEIGHT + 40)
+
+        card_area = CardArea(
+            50,
+            HEIGHT - CARD_HEIGHT - 80,
+            WIDTH - 100, 2 * (CARD_HEIGHT + 40) + 20,
+            callbackobject=self.client
+        )
         # callback function for take_hand_button
         def take_hand():
             self.client.request_cards()
-            hand_cards.set_cards(self.client._hand)
+            card_area.set_hand(self.client._hand)
 
+        # TODO: on_click: disable this button + error handling
         take_hand_button = Button(50, 50, 180, 40, "take new cards", on_click=take_hand)
 
         while self.running:
@@ -303,14 +369,18 @@ class TichuGui:
                     self.running = False
                 else:
                     take_hand_button.handle_event(event)
-                    hand_cards.handle_event(event, callback=lambda i, j: (
-                        self.client.move_hand(i, j),
-                        hand_cards.set_cards(self.client._hand)
-                    ))
+                    card_area.handle_event(event)
+                    # hand_cards.handle_event(
+                    #     event,
+                    #     callback=lambda i, j: (
+                    #         self.client.move_hand(i, j),
+                    #         hand_cards.set_cards(self.client._hand),
+                    #     ),
+                    # )
 
             self.screen.fill(C_BACKGROUND)
             take_hand_button.draw(self.screen)
-            hand_cards.draw(self.screen)
+            card_area.draw(self.screen)
 
             pg.display.flip()
 
