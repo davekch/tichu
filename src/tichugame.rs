@@ -1,5 +1,5 @@
 use crate::combinations::Trick;
-use crate::deck::{Card, Deck};
+use crate::deck::{Card, Deck, SpecialKind};
 
 pub struct TichuGame {
     deck: Deck,
@@ -54,9 +54,16 @@ impl TichuGame {
 
     pub fn add_trick(&mut self, trick: Trick) {
         // players must make sure themselves that trick is valid
-        self.tricks.push(trick);
-        self.current_player = (self.current_player + 1) % 4;
+        // check if it's the dog
+        let mut dog = Trick::new();
+        dog.push(Card::special(SpecialKind::Dog));
+        if trick == dog {
+            self.current_player = (self.current_player + 2) % 4;
+        } else {
+            self.current_player = (self.current_player + 1) % 4;
+        }
         self.passes = 0;
+        self.tricks.push(trick);
     }
 
     pub fn get_current_trick(&self) -> Option<&Trick> {

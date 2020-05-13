@@ -1,7 +1,7 @@
 use crate::deck::{Card, Kind, RegularKind, SpecialKind};
 use std::cmp::{max, min};
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Combination {
     Singlet,
     Doublet,
@@ -158,7 +158,7 @@ fn check_stairs(cards: &[Card]) -> bool {
     check_straight(&straight1) && check_straight(&straight2)
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Trick {
     // implements the combination of cards that is going to be played
     // this may be a valid combination or not (tricks of invalid combinations
