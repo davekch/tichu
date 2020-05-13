@@ -1,6 +1,5 @@
 use crate::combinations::Trick;
 use crate::deck::{Card, Deck};
-use crate::player::Player;
 
 pub struct TichuGame {
     deck: Deck,

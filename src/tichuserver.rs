@@ -1,4 +1,4 @@
-use crate::deck::Card;
+use crate::deck::{Card, SpecialKind};
 use crate::player::{Player, PlayerError};
 use crate::tichugame::TichuGame;
 use bufstream::BufStream;
@@ -53,6 +53,11 @@ impl TichuConnection {
                     match game.take_hand(player_index) {
                         Some(h) => {
                             self.answer_msg(player_index, &format_hand(&h));
+                            // check if this player has the One
+                            if h.contains(&Card::special(SpecialKind::One)) {
+                                game.current_player = player_index;
+                                self.send_push(player_index, "yourturn:");
+                            }
                             player.take_new_hand(h);
                         }
                         _ => {
@@ -92,6 +97,7 @@ impl TichuConnection {
                             self.send_push_to_all(&format!("newtrick:{}", format_hand(&trick.cards)));
                             debug!("the current trick is {:?}", &trick);
                             game.add_trick(trick);
+                            self.send_push(game.current_player, "yourturn:");
                         }
                         Err(PlayerError::NotValid) => self.answer_err(
                             player_index,
@@ -110,6 +116,7 @@ impl TichuConnection {
                     let mut game = self.game.lock().unwrap();
                     game.pass();
                     self.answer_ok(player_index);
+                    self.send_push(game.current_player, "yourturn:");
                 } else {
                     warn!("received invalid message from {}: {}", player.username, msg);
                     // self.answer_err(player_index, "invalid command");
