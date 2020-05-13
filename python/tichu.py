@@ -220,7 +220,6 @@ class CardArea:
                 for i, card in enumerate(cardstack):
                     if card.collidepoint(pos):
                         self.dragged_card = (card, i, stackname)
-                        logger.debug("picked card {} from {}".format(i, stackname))
                         break
 
         elif event.type == pg.MOUSEBUTTONUP:
@@ -241,30 +240,40 @@ class CardArea:
                 targetstack = self.stage.cardbuttons
                 targetname = "stage"
 
-            logger.debug("going to drop onto {}".format(targetname))
             card, i, sourcename = self.dragged_card
-            # calculate targetindex j
+            # calculate targetindex j // this somewhat complicated procedure creates intuitive behaviour of dropping cards
             if len(targetstack) == 0:
-                logger.debug("aptly {} has len 0".format(targetname))
                 j = 0
-            elif pos[0] > targetstack[-1].x:
-                logger.debug("mouselocation {} is larger than {}, drop at end".format(pos[0], targetstack[0].x))
-                j = len(targetstack) - 1
+            elif pos[0] > targetstack[-1].x0:
+                if sourcename == targetname:
+                    j = len(targetstack) - 1
+                else:
+                    j = len(targetstack)
             else:
                 for k, c in enumerate(targetstack):
-                    logger.debug("comparing mousex {} with card {} at pos {}".format(pos[0], k, c.x))
                     if c.collidepoint(pos) and not i == k:
                         j = k
                         break
-                    elif pos[0] < c.x:
-                        j = max(k - 1, 0)
+                    elif pos[0] < c.x0 and not i == k:
+                        if card.x0 < c.x0:
+                            j = max(k - 1, 0)
+                        else:
+                            j = k
                         break
+                else:
+                    # to be read as "if not break"
+                    j = i
+
+            self.dragged_card = None
+            if j == i and sourcename == targetname:
+                card.x, card.y = card.x0, card.y0
+                return
+
             # call the callback
             self.callbackmatrix[sourcename][targetname](i, j)
             # update hand and stage
             self.set_hand(self.callbackobject._hand)
             self.set_stage(self.callbackobject._stage)
-            self.dragged_card = None
 
 
 class TichuGui:
