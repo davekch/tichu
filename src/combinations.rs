@@ -164,7 +164,7 @@ pub struct Trick {
     // this may be a valid combination or not (tricks of invalid combinations
     // may not be played)
     pub combination: Option<Combination>,
-    cards: Vec<Card>, // it must be possible to add and remove cards
+    pub cards: Vec<Card>, // it must be possible to add and remove cards
 }
 
 impl Trick {

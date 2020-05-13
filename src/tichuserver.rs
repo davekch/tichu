@@ -56,7 +56,7 @@ impl TichuConnection {
                             player.take_new_hand(h);
                         }
                         _ => {
-                            error!("a client tried to take a hand that does not exist");
+                            debug!("a client tried to take a hand that does not exist");
                             self.answer_err(
                                 player_index,
                                 "there is no hand for you at the moment",
@@ -88,10 +88,10 @@ impl TichuConnection {
                     let played = player.play(current_trick);
                     match played {
                         Ok(trick) => {
-                            game.add_trick(trick);
                             self.answer_ok(player_index);
-                            debug!("the current trick is {:?}", game.get_current_trick());
-                            // TODO: notify the others
+                            self.send_push_to_all(&format!("newtrick:{}", format_hand(&trick.cards)));
+                            debug!("the current trick is {:?}", &trick);
+                            game.add_trick(trick);
                         }
                         Err(PlayerError::NotValid) => self.answer_err(
                             player_index,
@@ -106,6 +106,10 @@ impl TichuConnection {
                             "Your trick is incompatible with the current trick",
                         ),
                     }
+                } else if msg == "pass" && self.require_turn(player_index) {
+                    let mut game = self.game.lock().unwrap();
+                    game.pass();
+                    self.answer_ok(player_index);
                 } else {
                     warn!("received invalid message from {}: {}", player.username, msg);
                     self.answer_err(player_index, "invalid command");

@@ -142,6 +142,11 @@ class Client:
         else:
             raise TichuError(message)
 
+    def pass_play(self):
+        status, message = self._send_and_recv("pass")
+        if not status == "ok":
+            raise TichuError(message)
+
 
 if __name__ == "__main__":
     parser = ArgumentParser()

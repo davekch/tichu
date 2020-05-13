@@ -366,13 +366,20 @@ class TichuGui:
             WIDTH - 100, 2 * (CARD_HEIGHT + 40) + 20,
             callbackobject=self.client
         )
+
         # callback function for take_hand_button
         def take_hand():
             self.client.request_cards()
             card_area.set_hand(self.client._hand)
-
         # TODO: on_click: disable this button + error handling
         take_hand_button = Button(50, 50, 180, 40, "take new cards", on_click=take_hand)
+
+        # callback function for play_button
+        def play():
+            self.client.play()
+            card_area.set_stage(self.client._stage)
+        play_button = Button(card_area.stage.x + card_area.stage.width - 180, card_area.stage.y - 20, 150, 40, "play", on_click=play)
+        pass_button = Button(card_area.stage.x + card_area.stage.width - 380, card_area.stage.y - 20, 150, 40, "pass", on_click=self.client.pass_play)
 
         while self.running:
             self.clock.tick(FRAMERATE)
@@ -381,18 +388,15 @@ class TichuGui:
                     self.running = False
                 else:
                     take_hand_button.handle_event(event)
+                    play_button.handle_event(event)
+                    pass_button.handle_event(event)
                     card_area.handle_event(event)
-                    # hand_cards.handle_event(
-                    #     event,
-                    #     callback=lambda i, j: (
-                    #         self.client.move_hand(i, j),
-                    #         hand_cards.set_cards(self.client._hand),
-                    #     ),
-                    # )
 
             self.screen.fill(C_BACKGROUND)
             take_hand_button.draw(self.screen)
             card_area.draw(self.screen)
+            play_button.draw(self.screen)
+            pass_button.draw(self.screen)
 
             pg.display.flip()
 
