@@ -133,10 +133,9 @@ class Card(pg.Rect):
             self.text = SYMBOL_MAP[value.lower()]
         else:
             self.symbol = pg.image.load(os.path.join(RESOURCES_PATH, name + ".png"))
-        # is this card being dragged around right now
-        self.dragged = False
 
     def draw(self, screen):
+        pg.draw.rect(screen, COLORS["white"], self, 0)  # draw background
         pg.draw.rect(screen, C_TEXT, self, 2)  # draw border of rectangle
         screen.blit(self.symbol, (self.x - 20, self.y + 5))
         if hasattr(self, "text"):
@@ -197,6 +196,10 @@ class CardArea:
     def draw(self, screen):
         self.hand.draw(screen)
         self.stage.draw(screen)
+        # if we drag a card around, draw it after everything else so it is on top
+        if self.dragged_card:
+            card, _, _ = self.dragged_card
+            card.draw(screen)
 
     def handle_event(self, event):
         pos = pg.mouse.get_pos()
