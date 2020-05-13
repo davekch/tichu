@@ -112,7 +112,7 @@ impl TichuConnection {
                     self.answer_ok(player_index);
                 } else {
                     warn!("received invalid message from {}: {}", player.username, msg);
-                    self.answer_err(player_index, "invalid command");
+                    // self.answer_err(player_index, "invalid command");
                 }
             } else if let Err(e) = line {
                 error!("Error while reading message for {}: {}", player.username, e);
