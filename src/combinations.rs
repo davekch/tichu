@@ -272,6 +272,10 @@ impl Trick {
         }
         let thiscombination = self.combination.unwrap(); // extract the value from Some()
         let othercombination = other.combination.unwrap();
+        // if the other combination is the dog, then this combination tops in every case
+        if other.cards[0].kind == Kind::Special(SpecialKind::Dog) {
+            return Some(true);
+        }
         if thiscombination != Combination::Bomb
             && thiscombination != Combination::StraightFlush
             && thiscombination != othercombination
