@@ -301,6 +301,8 @@ impl Trick {
             // tops if it is longer or higher
             if self.cards.len() > other.cards.len() {
                 return Some(true);
+            } else if self.cards.len() < other.cards.len() {
+                return Some(false);
             }
             // if they are equally long, compare starting or end rank (avoid phoenix)
             else if self.cards[0].kind == Kind::Special(SpecialKind::Phoenix)
@@ -476,14 +478,14 @@ mod tests {
         let mut trick = Trick::new();
         let king = Card::regular(RegularKind::King, Color::Black);
         let queen = Card::regular(RegularKind::Queen, Color::Red);
-        trick.insert(0, queen);
+        trick.push(queen);
         assert_eq!(trick.combination, Some(Combination::Singlet));
-        trick.insert(1, king);
+        trick.push(king);
         assert_eq!(trick.combination, None);
-        let king2 = trick.remove(1);
+        let king2 = trick.cards.remove(1);
         assert_eq!(king, king2);
         let phoenix = Card::special(SpecialKind::Phoenix);
-        trick.insert(0, phoenix);
+        trick.push(phoenix);
         assert_eq!(trick.combination, Some(Combination::Doublet));
     }
 
@@ -558,6 +560,25 @@ mod tests {
         trick2.push(blacktwo);
         trick2.push(greentwo);
         println!("trick2 rank {}", trick2.total_rank());
+        assert_eq!(trick2.tops(&trick1), Some(true));
+    }
+
+    #[test]
+    fn test_tops_straights() {
+        let mut trick1 = Trick::new();
+        trick1.push(Card::regular(RegularKind::Four, Color::Black));
+        trick1.push(Card::regular(RegularKind::Five, Color::Black));
+        trick1.push(Card::regular(RegularKind::Six, Color::Red));
+        trick1.push(Card::regular(RegularKind::Seven, Color::Black));
+        trick1.push(Card::regular(RegularKind::Eight, Color::Black));
+        let mut trick2 = Trick::new();
+        trick2.push(Card::regular(RegularKind::Two, Color::Black));
+        trick2.push(Card::regular(RegularKind::Three, Color::Black));
+        trick2.push(Card::regular(RegularKind::Four, Color::Green));
+        trick2.push(Card::regular(RegularKind::Five, Color::Black));
+        trick2.push(Card::regular(RegularKind::Six, Color::Black));
+        trick2.push(Card::regular(RegularKind::Seven, Color::Black));
+        assert_eq!(trick1.tops(&trick2), Some(false));
         assert_eq!(trick2.tops(&trick1), Some(true));
     }
 }
