@@ -1,6 +1,6 @@
 use crate::deck::{Card, SpecialKind};
 use crate::player::{Player, PlayerError};
-use crate::tichugame::TichuGame;
+use crate::tichugame::{TichuGame, RoundStatus};
 use bufstream::BufStream;
 use log::{debug, error, info, warn};
 use std::io::{BufRead, Write};
@@ -82,6 +82,13 @@ impl TichuConnection {
                             self.send_push_to_all(&format!("newtrick:{}", format_hand(&trick.cards)));
                             debug!("the current trick is {:?}", &trick);
                             game.add_trick(trick);
+                            if !player.has_cards() {
+                                game.mark_finished(player_index);
+                            }
+                            let status = game.next();
+                            if status == RoundStatus::TrickWin {
+                                self.send_push_to_all(&"cleartable:");
+                            }
                             self.send_push(game.current_player, "yourturn:");
                         }
                         Err(PlayerError::NotValid) => self.answer_err(
@@ -104,6 +111,10 @@ impl TichuConnection {
                 } else if msg == "pass" && self.require_turn(player_index) {
                     let mut game = self.game.lock().unwrap();
                     game.pass();
+                    let status = game.next();
+                    if status == RoundStatus::TrickWin {
+                        self.send_push_to_all(&"cleartable:");
+                    }
                     self.answer_ok(player_index);
                     self.send_push(game.current_player, "yourturn:");
                 } else {

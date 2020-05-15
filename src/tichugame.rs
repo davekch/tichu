@@ -7,8 +7,9 @@ pub struct TichuGame {
     hands: [Option<Vec<Card>>; 4],
     pub current_player: usize,
     player_points: [i16; 4],
+    finished: Vec<usize>, // contains indices of players that finished, in order
     pub tricks: Vec<Trick>, // tricks in the middle of the table
-    pub passes: u8, // number of times that players have passed (at 3, last_trick wins the round)
+    pub passes: u8, // number of times that players have passed (at 3, player wins the round)
     pub scores: Vec<(i16, i16)>,
 }
 
@@ -20,6 +21,7 @@ impl TichuGame {
             current_player: 0,
             player_points: [0, 0, 0, 0],
             passes: 0,
+            finished: Vec::new(),
             scores: vec![(0, 0)],
             tricks: Vec::new(),
         }
@@ -40,7 +42,29 @@ impl TichuGame {
     pub fn pass(&mut self) {
         // call this if a player doesn't want to play
         self.passes += 1;
-        self.current_player = (self.current_player + 1) % 4;
+    }
+
+    pub fn add_trick(&mut self, trick: Trick) {
+        // players must make sure themselves that trick is valid
+        self.passes = 0; // chain of passes is interrupted
+        self.tricks.push(trick);
+    }
+
+    pub fn next(&mut self) -> RoundStatus {
+        // move current player
+        // if the latest trick is the dog, the current player shifts by 2
+        let mut dog = Trick::new();
+        dog.push(Card::special(SpecialKind::Dog));
+        if self.tricks.len() == 1 && self.tricks[0] == dog {
+            self.current_player = (self.current_player + 2) % 4;
+        } else {
+            self.current_player = (self.current_player + 1) % 4;
+        }
+        // if the current player has no cards left, they "pass"
+        while self.finished.contains(&self.current_player) {
+            self.passes += 1;
+            self.current_player = (self.current_player + 1) % 4;
+        }
         if self.passes == 3 {
             // if 3 players pass, the current player wins this round
             self.passes = 0;
@@ -49,21 +73,20 @@ impl TichuGame {
                 self.player_points[self.current_player] += trick.points();
             }
             self.tricks = Vec::new();
+            return RoundStatus::TrickWin;
         }
+        RoundStatus::Continue
     }
 
-    pub fn add_trick(&mut self, trick: Trick) {
-        // players must make sure themselves that trick is valid
-        // check if it's the dog
-        let mut dog = Trick::new();
-        dog.push(Card::special(SpecialKind::Dog));
-        if trick == dog {
-            self.current_player = (self.current_player + 2) % 4;
-        } else {
-            self.current_player = (self.current_player + 1) % 4;
+    pub fn mark_finished(&mut self, player_index: usize) -> RoundStatus {
+        self.finished.push(player_index);
+        // if only one player is left, the round has ended
+        if self.finished.len() == 3 {
+            return RoundStatus::FinishRound;
         }
-        self.passes = 0;
-        self.tricks.push(trick);
+        // TODO: if partners finish, it's also over
+        // TODO: count points
+        RoundStatus::Continue
     }
 
     pub fn get_current_trick(&self) -> Option<&Trick> {
@@ -73,4 +96,13 @@ impl TichuGame {
             None
         }
     }
+}
+
+#[derive(PartialEq, Eq)]
+pub enum RoundStatus {
+    Continue,
+    TrickWin, // someone's won a trick but the round continues
+    FinishRound, // round's finished
+    DoubleFinishRound, // round's finished and a team won together
+    FinishGame,
 }

@@ -62,6 +62,10 @@ impl Player {
             self.hand.remove(i);
         }
     }
+
+    pub fn has_cards(&self) -> bool {
+        self.hand.len() > 0
+    }
 }
 
 pub enum PlayerError {
