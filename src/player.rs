@@ -1,71 +1,71 @@
 use crate::combinations::Trick;
 use crate::deck::Card;
+use std::collections::HashMap;
 
 pub struct Player {
-    hand: Vec<Card>,
-    stage: Trick, // here, cards are stored that the player is planning to play
+    hand: HashMap<usize, Card>,
     pub username: String,
 }
 
 impl Player {
     pub fn new(username: String) -> Player {
         Player {
-            hand: Vec::new(),
-            stage: Trick::new(),
+            hand: HashMap::new(),
             username: username,
         }
     }
 
     pub fn take_new_hand(&mut self, hand: Vec<Card>) {
-        self.hand = hand;
+        // store each card in a hash map with an index works as an identifyer
+        let mut id = 0;
+        for c in hand {
+            self.hand.insert(id, c);
+            id += 1;
+        }
     }
 
-    // in all these "i, j" style methods, the client must check themselves that
-    // the is and js are valid
-    pub fn stage(&mut self, i: usize, j: usize) {
-        // move ith card in hand to j in stage
-        self.stage.insert(j, self.hand.remove(i));
-    }
-
-    pub fn unstage(&mut self, i: usize, j: usize) {
-        // move ith card in stage to j in hand
-        self.hand.insert(j, self.stage.remove(i));
-    }
-
-    pub fn move_hand(&mut self, i: usize, j: usize) {
-        // move ith card in hand to j in hand
-        let card = self.hand.remove(i);
-        self.hand.insert(j, card);
-    }
-
-    pub fn move_stage(&mut self, i: usize, j: usize) {
-        // move ith card in stage to j in stage
-        let card = self.stage.remove(i);
-        self.stage.insert(j, card);
-    }
-
-    pub fn play(&mut self, trick: Option<&Trick>) -> Result<Trick, PlayerError> {
+    pub fn play(&mut self, trick_to_top: Option<&Trick>, cards: &Vec<usize>) -> Result<Trick, PlayerError> {
+        // build the own trick
+        let mut own_trick = Trick::new();
+        for i in cards {
+            let card = self.hand.get(i);
+            match card {
+                Some(c) => own_trick.push(*c),
+                None => return Err(PlayerError::InvalidCard),
+            }
+        }
         // if the player is first, trick is None, else the own stage must top the trick
-        match trick {
+        match trick_to_top {
             None => {
-                if self.stage.is_valid() {
-                    Ok(self.stage.empty()) // give up ownership of the trick, new stage is now empty
+                if own_trick.is_valid() {
+                    self.remove_cards(cards);
+                    Ok(own_trick)
                 } else {
                     Err(PlayerError::NotValid)
                 }
             }
             Some(trick) => {
-                match self.stage.tops(trick) {
-                    Some(true) => Ok(self.stage.empty()), // give up ownership of the trick, new stage is now empty
+                match own_trick.tops(trick) {
+                    Some(true) => {
+                        self.remove_cards(cards);
+                        Ok(own_trick)
+                    }
                     Some(false) => Err(PlayerError::TooLow),
                     None => Err(PlayerError::Incompatible),
                 }
             }
         }
     }
+
+    fn remove_cards(&mut self, cards: &Vec<usize>) {
+        for i in cards {
+            self.hand.remove(i);
+        }
+    }
 }
 
 pub enum PlayerError {
+    InvalidCard,
     NotValid,
     TooLow,
     Incompatible,

@@ -69,28 +69,13 @@ impl TichuConnection {
                         }
                     };
                 // lock gets released at end of this scope
-                } else if msg.starts_with("stage") {
-                    let (i, j) = parse_command_parameters(&msg);
-                    player.stage(i, j);
-                    self.answer_ok(player_index);
-                } else if msg.starts_with("unstage") {
-                    let (i, j) = parse_command_parameters(&msg);
-                    player.unstage(i, j);
-                    self.answer_ok(player_index);
-                } else if msg.starts_with("mv_h") {
-                    let (i, j) =  parse_command_parameters(&msg);
-                    player.move_hand(i, j);
-                    self.answer_ok(player_index);
-                } else if msg.starts_with("mv_s") {
-                    let (i, j) = parse_command_parameters(&msg);
-                    player.move_stage(i, j);
-                    self.answer_ok(player_index);
-                } else if msg == "play" && self.require_turn(player_index) {
+                } else if msg.starts_with("play") && self.require_turn(player_index) {
+                    let args = parse_command_parameters(&msg);
                     // check if it's the player's turn
                     let mut game = self.game.lock().unwrap();
                     let current_trick = game.get_current_trick();
                     // let the player play against the current trick
-                    let played = player.play(current_trick);
+                    let played = player.play(current_trick, &args);
                     match played {
                         Ok(trick) => {
                             self.answer_ok(player_index);
@@ -111,6 +96,10 @@ impl TichuConnection {
                             player_index,
                             "Your trick is incompatible with the current trick",
                         ),
+                        Err(PlayerError::InvalidCard) => {
+                            error!("Player {} tried to play a card that is not in their hand anymore", player_index);
+                            self.answer_err(player_index, "something went wrong on the server side");
+                        }
                     }
                 } else if msg == "pass" && self.require_turn(player_index) {
                     let mut game = self.game.lock().unwrap();
@@ -270,12 +259,14 @@ fn format_hand(hand: &Vec<Card>) -> String {
     str.to_string()
 }
 
-fn parse_command_parameters(command: &str) -> (usize, usize) {
+fn parse_command_parameters(command: &str) -> Vec<usize> {
     // parse something like "command 1 2" into (1, 2)
     let mut parts = command.split_whitespace();
     // ignore first part
     parts.next();
-    let num1: usize = parts.next().unwrap().parse().unwrap();
-    let num2: usize = parts.next().unwrap().parse().unwrap();
-    (num1, num2)
+    let mut args: Vec<usize> = Vec::new();
+    for p in parts {
+        args.push(p.parse().unwrap());
+    }
+    return args
 }
