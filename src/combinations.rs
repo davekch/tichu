@@ -180,29 +180,6 @@ impl Trick {
         self.combination = find_combination(&self.cards);
     }
 
-    pub fn insert(&mut self, i: usize, element: Card) {
-        self.cards.insert(i, element);
-        self.combination = find_combination(&self.cards);
-    }
-
-    pub fn remove(&mut self, i: usize) -> Card {
-        let removed = self.cards.remove(i);
-        self.combination = find_combination(&self.cards);
-        removed
-    }
-
-    pub fn empty(&mut self) -> Trick {
-        // empty all cards from this trick and return an owned clone
-        let combination = self.combination;
-        let cards = self.cards.to_vec();
-        self.combination = None;
-        self.cards = Vec::new();
-        Trick {
-            combination: combination,
-            cards: cards,
-        }
-    }
-
     pub fn points(&self) -> i16 {
         self.cards.iter().fold(0, |acc, c| acc + c.value)
     }
