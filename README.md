@@ -1,5 +1,6 @@
 Tichu
 =======
+Servers a single game of Tichu with four players.
 
 Run the server:
 ```bash
@@ -9,10 +10,22 @@ cargo build
 sudo $(which cargo) run
 ```
 
-Run the client (requires python3)
-```bash
-git clone git@github.com:davekch/tichuclient.git
-pip install pygame==2.0.0.dev6  # older versions cause cpu-usage of 100%
-cd tichuclient
-python tichu.py
+Options:
 ```
+tichuserver 0.1.0
+davekch <dave-koch@web.de>
+TCP server for a single game of Tichu
+
+USAGE:
+    tichu [OPTIONS]
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -i, --ip_address <IP>    specify an IP address
+    -p, --port <PORT>        specify a port
+```
+
+A client can be found at https://github.com/davekch/tichuclient
