@@ -5,7 +5,7 @@ use bufstream::BufStream;
 use log::{debug, error, info, warn};
 use std::io::{BufRead, Write};
 use std::net::{TcpListener, TcpStream};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 
 struct TichuConnection {
@@ -45,7 +45,7 @@ impl TichuConnection {
         // main loop waiting for commands
         for line in readstream.lines() {
             if let Ok(msg) = line {
-                debug!("got message for {}: {}", player.username, msg);
+                debug!("got message from {}: {}", player.username, msg);
                 // check for all the possible messages
                 if msg == "takecards" {
                     // acquire the lock to self.game
@@ -82,14 +82,7 @@ impl TichuConnection {
                             self.send_push_to_all(&format!("newtrick:{}", format_hand(&trick.cards)));
                             debug!("the current trick is {:?}", &trick);
                             game.add_trick(trick);
-                            if !player.has_cards() {
-                                game.mark_finished(player_index);
-                            }
-                            let status = game.next();
-                            if status == RoundStatus::TrickWin {
-                                self.send_push_to_all(&"cleartable:");
-                            }
-                            self.send_push(game.current_player, "yourturn:");
+                            self.continue_round(game, &player, player_index);
                         }
                         Err(PlayerError::NotValid) => self.answer_err(
                             player_index,
@@ -111,12 +104,8 @@ impl TichuConnection {
                 } else if msg == "pass" && self.require_turn(player_index) {
                     let mut game = self.game.lock().unwrap();
                     game.pass();
-                    let status = game.next();
-                    if status == RoundStatus::TrickWin {
-                        self.send_push_to_all(&"cleartable:");
-                    }
                     self.answer_ok(player_index);
-                    self.send_push(game.current_player, "yourturn:");
+                    self.continue_round(game, &player, player_index);
                 } else {
                     warn!("received invalid message from {}: {}", player.username, msg);
                     // self.answer_err(player_index, "invalid command");
@@ -125,6 +114,25 @@ impl TichuConnection {
                 error!("Error while reading message for {}: {}", player.username, e);
             }
         }
+    }
+
+    fn continue_round(&self, mut game: MutexGuard<TichuGame>, player: &Player, player_index: usize) {
+        // this function rotates the current player and  checks for all
+        // possible cases after a player finished their move
+        let status = game.next();
+        if status == RoundStatus::TrickWin {
+            self.send_push_to_all(&"cleartable:");
+        }
+        if !player.has_cards() {
+            match game.mark_finished(player_index) {
+                RoundStatus::FinishRound => {
+                    debug!("this round is finished! new points: {:?}", game.get_current_score());
+                }
+                RoundStatus::Continue => {}
+                _ => {}
+            };
+        }
+        self.send_push(game.current_player, "yourturn:");
     }
 
     fn answer_ok(&self, index: usize) {

@@ -8,9 +8,10 @@ pub struct TichuGame {
     pub current_player: usize,
     player_points: [i16; 4],
     finished: Vec<usize>, // contains indices of players that finished, in order
-    pub tricks: Vec<Trick>, // tricks in the middle of the table
-    pub passes: u8, // number of times that players have passed (at 3, player wins the round)
-    pub scores: Vec<(i16, i16)>,
+    tricks: Vec<Trick>, // tricks in the middle of the table
+    passes: u8, // number of times that players have passed (at 3, player wins the round)
+    // scores[i][0] is for team 0,2 and scores[i][1] is for team 1,3
+    scores: Vec<Vec<i16>>,
 }
 
 impl TichuGame {
@@ -22,7 +23,7 @@ impl TichuGame {
             player_points: [0, 0, 0, 0],
             passes: 0,
             finished: Vec::new(),
-            scores: vec![(0, 0)],
+            scores: vec![vec![0, 0]],
             tricks: Vec::new(),
         }
     }
@@ -80,13 +81,43 @@ impl TichuGame {
 
     pub fn mark_finished(&mut self, player_index: usize) -> RoundStatus {
         self.finished.push(player_index);
+        let mut gamestatus: RoundStatus;
         // if only one player is left, the round has ended
         if self.finished.len() == 3 {
-            return RoundStatus::FinishRound;
+            // figure out who finished last
+            // self.finished only contains the first three finishers so the last one is
+            // (0+1+2+3 = 6) - sum(self.finished)
+            let last: usize = 6 - self.finished.iter().sum::<usize>();
+            let mut points = vec![0, 0];
+            // the team of the first finisher gets to keep their own points
+            points[self.finished[0] % 2] += self.player_points[self.finished[0]];
+            // team of first finisher gets the points of last finisher
+            points[self.finished[0] % 2] += self.player_points[last];
+            // team of second and third finisher keep their own points
+            points[self.finished[1] % 2] += self.player_points[self.finished[1]];
+            points[self.finished[2] % 2] += self.player_points[self.finished[2]];
+            // left cards of the last player go to opposing team. the value of the left cards is 100 - sum(points)
+            points[(last + 1) % 2] += 100 - points.iter().sum::<i16>();
+            // save and reset
+            self.scores.push(points);
+            self.player_points = [0, 0, 0, 0];
+            gamestatus = RoundStatus::FinishRound;
+        } else if self.finished.len() == 2 && (self.finished[0] % 2 == self.finished[1] % 2) {
+            let mut points = vec![0, 0];
+            points[self.finished[0] % 2] += 200;
+            self.scores.push(points);
+            self.player_points = [0, 0, 0, 0];
+            gamestatus = RoundStatus::FinishRound;
+        } else {
+            gamestatus = RoundStatus::Continue;
         }
-        // TODO: if partners finish, it's also over
-        // TODO: count points
-        RoundStatus::Continue
+        // check if game is over
+        if self.scores[self.scores.len() - 1][0] > 999 {
+            gamestatus = RoundStatus::Team1Wins;
+        } else if self.scores[self.scores.len() - 1][1] > 999 {
+            gamestatus = RoundStatus::Team2Wins;
+        }
+        return gamestatus;
     }
 
     pub fn get_current_trick(&self) -> Option<&Trick> {
@@ -96,6 +127,11 @@ impl TichuGame {
             None
         }
     }
+
+    pub fn get_current_score(&self) -> (i16, i16) {
+        let points = &self.scores[self.scores.len() - 1];
+        (points[0], points[1])
+    }
 }
 
 #[derive(PartialEq, Eq)]
@@ -103,6 +139,6 @@ pub enum RoundStatus {
     Continue,
     TrickWin, // someone's won a trick but the round continues
     FinishRound, // round's finished
-    DoubleFinishRound, // round's finished and a team won together
-    FinishGame,
+    Team1Wins,
+    Team2Wins,
 }
