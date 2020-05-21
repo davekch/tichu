@@ -1,5 +1,6 @@
 use crate::combinations::Trick;
 use crate::deck::{Card, Deck, SpecialKind};
+use log::debug;
 
 pub struct TichuGame {
     deck: Deck,
@@ -61,22 +62,27 @@ impl TichuGame {
         } else {
             self.current_player = (self.current_player + 1) % 4;
         }
-        // if the current player has no cards left, they "pass"
-        while self.finished.contains(&self.current_player) {
-            self.passes += 1;
-            self.current_player = (self.current_player + 1) % 4;
-        }
-        if self.passes == 3 {
-            // if 3 players pass, the current player wins this round
-            self.passes = 0;
-            // collect all the points
-            for trick in &self.tricks {
-                self.player_points[self.current_player] += trick.points();
+        let mut status = RoundStatus::Continue;
+        // while loop to pass all finished players + collect tricks if someone wins
+        while self.finished.contains(&self.current_player) || self.passes == 3 {
+            if self.passes == 3 {
+                // if 3 players pass, the current player wins this round
+                self.passes = 0;
+                // collect all the points
+                for trick in &self.tricks {
+                    debug!("player {} wins and gets {} points", self.current_player, trick.points());
+                    self.player_points[self.current_player] += trick.points();
+                }
+                self.tricks = Vec::new();
+                status = RoundStatus::TrickWin;
             }
-            self.tricks = Vec::new();
-            return RoundStatus::TrickWin;
+            // if the current player has no cards left, they "pass"
+            if self.finished.contains(&self.current_player) {
+                self.passes += 1;
+                self.current_player = (self.current_player + 1) % 4;
+            }
         }
-        RoundStatus::Continue
+        status
     }
 
     pub fn mark_finished(&mut self, player_index: usize) -> RoundStatus {
