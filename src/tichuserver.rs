@@ -56,7 +56,7 @@ impl TichuConnection {
                             // check if this player has the One
                             if h.contains(&Card::special(SpecialKind::One)) {
                                 game.current_player = player_index;
-                                self.send_push(player_index, "yourturn:");
+                                self.send_push(player_index, "yourturn", "");
                             }
                             player.take_new_hand(h);
                         }
@@ -79,7 +79,7 @@ impl TichuConnection {
                     match played {
                         Ok(trick) => {
                             self.answer_ok(player_index);
-                            self.send_push_to_all(&format!("newtrick:{}", format_hand(&trick.cards)));
+                            self.send_push_to_all("newtrick", &format_hand(&trick.cards));
                             debug!("the current trick is {:?}", &trick);
                             game.add_trick(trick);
                             self.continue_round(game, &player, player_index);
@@ -121,7 +121,7 @@ impl TichuConnection {
         // possible cases after a player finished their move
         let status = game.next();
         if status == RoundStatus::TrickWin {
-            self.send_push_to_all(&"cleartable:");
+            self.send_push_to_all("cleartable", "");
         }
         if !player.has_cards() {
             match game.mark_finished(player_index) {
@@ -132,7 +132,7 @@ impl TichuConnection {
                 _ => {}
             };
         }
-        self.send_push(game.current_player, "yourturn:");
+        self.send_push(game.current_player, "yourturn", "");
     }
 
     fn answer_ok(&self, index: usize) {
@@ -163,15 +163,15 @@ impl TichuConnection {
         };
     }
 
-    fn send_push_to_all(&self, msg: &str) {
+    fn send_push_to_all(&self, topic: &str, msg: &str) {
         // send a push message to all clients in self.streams
         for i in 0..4 {
-            self.send(i, &format!("push:{}", msg));
+            self.send_push(i, topic, msg);
         }
     }
 
-    fn send_push(&self, index: usize, msg: &str) {
-        self.send(index, &format!("push:{}", msg));
+    fn send_push(&self, index: usize, topic: &str, msg: &str) {
+        self.send(index, &format!("push:{}:{}", topic, msg));
     }
 
     fn require_turn(&self, player_index: usize) -> bool {
