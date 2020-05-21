@@ -297,7 +297,7 @@ impl Trick {
                 (othercombination == Combination::Bomb && self.cards[0].rank > other.cards[0].rank)
                     || othercombination != Combination::StraightFlush,
             );
-        } else if thiscombination == Combination::Straight {
+        } else if thiscombination == Combination::Straight || thiscombination == Combination::Stairs {
             // tops if it is longer or higher
             if self.cards.len() > other.cards.len() {
                 return Some(true);
@@ -578,6 +578,29 @@ mod tests {
         trick2.push(Card::regular(RegularKind::Five, Color::Black));
         trick2.push(Card::regular(RegularKind::Six, Color::Black));
         trick2.push(Card::regular(RegularKind::Seven, Color::Black));
+        assert_eq!(trick1.tops(&trick2), Some(false));
+        assert_eq!(trick2.tops(&trick1), Some(true));
+    }
+
+    #[test]
+    fn test_tops_stairs() {
+        let mut trick1 = Trick::new();
+        trick1.push(Card::regular(RegularKind::Five, Color::Blue));
+        trick1.push(Card::regular(RegularKind::Five, Color::Red));
+        trick1.push(Card::regular(RegularKind::Six, Color::Blue));
+        trick1.push(Card::regular(RegularKind::Six, Color::Red));
+        trick1.push(Card::regular(RegularKind::Seven, Color::Blue));
+        trick1.push(Card::regular(RegularKind::Seven, Color::Red));
+        // construct longer but lower stairs
+        let mut trick2 = Trick::new();
+        trick2.push(Card::regular(RegularKind::Two, Color::Blue));
+        trick2.push(Card::regular(RegularKind::Two, Color::Red));
+        trick2.push(Card::regular(RegularKind::Three, Color::Blue));
+        trick2.push(Card::regular(RegularKind::Three, Color::Red));
+        trick2.push(Card::regular(RegularKind::Four, Color::Blue));
+        trick2.push(Card::regular(RegularKind::Four, Color::Red));
+        trick2.push(Card::regular(RegularKind::Five, Color::Blue));
+        trick2.push(Card::regular(RegularKind::Five, Color::Red));
         assert_eq!(trick1.tops(&trick2), Some(false));
         assert_eq!(trick2.tops(&trick1), Some(true));
     }
