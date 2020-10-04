@@ -126,6 +126,9 @@ impl TichuConnection {
         if !player.has_cards() {
             match game.mark_finished(player_index) {
                 RoundStatus::FinishRound => {
+                    game.shuffle_and_deal();
+                    self.send_push_to_all(&"cleartable:");
+                    self.send_push_to_all(&"clearcards:");
                     debug!("this round is finished! new points: {:?}", game.get_current_score());
                 }
                 RoundStatus::Continue => {}
